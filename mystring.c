@@ -11,7 +11,6 @@ such as comparing strings for equality, copying strings, etc. Identify and devel
 /**
 Function returns the length of a string.
 **/
-// still need to test
 unsigned int mystrlen(const char *s)
 {
   unsigned int len = 0;
@@ -24,7 +23,6 @@ unsigned int mystrlen(const char *s)
 /**
 Function compares two strings for equality. 
 **/
-// still need to test
 int mystrcmp(const char *s1, const char *s2)
 {
   while (*s1 == *s2 && *s1 != '\0' && *s2 != '\0') { // while characters are equal and not null terminator
@@ -47,5 +45,4 @@ char *mystrcpy(char *dest, const char *src)
     }
     *d = '\0';             // add the final null terminator
     return dest;           // return original dest pointer
-  //return strcpy(dest, src);
 }
