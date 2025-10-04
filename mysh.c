@@ -5,16 +5,47 @@
 #include <stdio.h> //remove later
 
 
+static void debug_print_command(const struct Command *cmd) {
+    printf("argc=%u, background=%d\n", cmd->argc, cmd->background);
+    for (unsigned i = 0; i < cmd->argc; i++) {
+        printf("  argv[%u] = \"%s\"\n", i, cmd->argv[i]);
+    }
+    if (cmd->argc == 0) puts("  (no tokens)");
+}
+
+
 int main(int argc, char *argv[], char *envp[])
-{
-  struct Command command;
-  int exitShell = 0;
+{    struct Command cmd;
+
+    for (;;) {
+        int rc = get_command(&cmd);
+        if (rc == 1) {               // user typed "exit"
+            break;
+        }
+        if (rc < 0) {                // read or parse error
+            perror("get_command");
+            continue;
+        }
+        if (cmd.argc == 0) {         // blank/whitespace line
+            continue;
+        }
+
+        // Optional: sanity check what tokenizer produced
+        debug_print_command(&cmd);
+
+        // Execute
+        if (run_command(&cmd) < 0) {
+            perror("run_command");
+        }
+   
+  //struct Command command;
+  //int exitShell = 0;
   /* TO DO: prompt for and read command line */
   
-  while (1)
-    {
-      int result = get_command(&command); 
-      if (result == 1) break; // exit the shell
+  //while (1)
+    //{
+      //int result = get_command(&command); 
+      //if (result == 1) break; // exit the shell
       
 
  /*char *p1 = alloc(20);
@@ -60,5 +91,5 @@ int main(int argc, char *argv[], char *envp[])
       /* TO DO: prompt for and read command line */
     }
   
-  return 0;
+//  return 0;
 }

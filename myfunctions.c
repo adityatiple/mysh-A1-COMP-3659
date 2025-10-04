@@ -42,63 +42,91 @@ int char_limit(ssize_t input_size, int max_limit, char *input_buffer) {
     }
     return 0;
 }
+static char *arena_ndup(const char *s, unsigned int n) {
+    char *p = alloc(n + 1);
+    if (!p) return NULL;
+    for (unsigned int i = 0; i < n; i++) {
+        p[i] = s[i];
+    }
+    p[n] = '\0';
+    return p;
+}
 
-/*
-Prompts the user to enter a command line
-Reads a command line into a buffer, handling cases such as command lines that are 
-too long
-Calls free_all to reset the heap
-Tokenizes the command line, populating the given command structure 
-(and its argv, etc.) in the process
-*/
 int get_command(struct Command *command) {
-    char input_buffer[MAX_CH + 1]; // buffer to hold user input
+    char input_buffer[MAX_CH + 1];
 
-    /* use free_all() function here */
+    /* reset per-command arena */
+    free_all();
 
-    // initialize argc and argv
+    /* init */
     command->argc = 0;
+    command->background = 0;
     for (int i = 0; i < MAX_ARGS + 1; i++) {
         command->argv[i] = NULL;
     }
-    
-    // prompt user
+
+    /* prompt */
     write(1, "mysh $ ", 7);
 
-    // read user input
-    ssize_t input_size = read(0, input_buffer, MAX_CH + 1);
-    input_buffer[input_size] = '\0'; // null terminate the end of string
+    /* read (cap at MAX_CH) */
+    ssize_t nread = read(0, input_buffer, MAX_CH);
+    if (nread <= 0) return -1;                 // EOF or error
+    input_buffer[nread] = '\0';
 
-    // ignore leading whitespace + go to first non white space character
-    int start = start_char(input_buffer, input_size);
-    if (start >= input_size) {
-        return 0; // only whitespace
-    }
-    
-    // error handling of maximum character reached
-    if (char_limit(input_size, MAX_CH, input_buffer)) {
-            return 0;
-    }
-    
-    // Remove trailing newline if present
-    if (input_size > 0 && input_buffer[input_size - 1] == '\n') {
-        input_buffer[input_size - 1] = '\0';
-        input_size--;
+    /* too long? */
+    if (char_limit(nread, MAX_CH, input_buffer)) return 0;
+
+    /* strip trailing newline */
+    if (nread > 0 && input_buffer[nread - 1] == '\n') {
+        input_buffer[nread - 1] = '\0';
+        nread--;
     }
 
-    if (exit_command(input_buffer, start)) {
-        return 1; // main() will exit
-    };
+    /* skip leading ws */
+    int i = start_char(input_buffer, (int)nread);
+    if (i >= nread) return 0;                  // only whitespace
 
-    write(1, input_buffer + start, input_size - start);
-    write(1, "\n", 1);
+    /* exit? */
+    if (mystrcmp(input_buffer + i, "exit") == 0) return 1;
 
-    command->argv[0] = input_buffer + start;
-    command->argc = 1;
 
-    /** NEED TO CALL ALLOC AND FREE IN FUNCTION - currently had to hard code **/
 
-    return input_size - start;
+
+
+    /* tokenize: spaces/tabs; '&' is its own token */
+    while (i < nread && command->argc < MAX_ARGS) {
+        /* skip ws */
+        while (i < nread && (input_buffer[i] == ' ' || input_buffer[i] == '\t')) i++;
+        if (i >= nread || input_buffer[i] == '\0') break;
+
+        if (input_buffer[i] == '&') {
+            char *amp = arena_ndup("&", 1);
+            if (!amp) { write(2, "alloc failed\n", 13); return -1; }
+            command->argv[command->argc++] = amp;
+            i++;
+            continue;
+        }
+
+        int start = i;
+        while (i < nread &&
+               input_buffer[i] != ' ' && input_buffer[i] != '\t' &&
+               input_buffer[i] != '&' && input_buffer[i] != '\0') {
+            i++;
+        }
+        unsigned int len = (unsigned int)(i - start);
+        if (len > 0) {
+            char *tok = arena_ndup(input_buffer + start, len);
+            if (!tok) { write(2, "alloc failed\n", 13); return -1; }
+            command->argv[command->argc++] = tok;
+        }
+        /* loop continues; if we stopped on '&', it will be handled next */
+    }
+
+
+
+
+    command->argv[command->argc] = NULL;   // important!
+    return 0;
 }
 
 int run_command(struct Command *command) {
@@ -109,15 +137,7 @@ int run_command(struct Command *command) {
     if (!command || command->argc == 0 || !command->argv[0])
         return 0;
 
-    // handle trailing '&'
-    if (command->argc > 0 && mystrcmp(command->argv[command->argc - 1], "&") == 0) {
-        command->background = 1;
-        command->argv[command->argc - 1] = NULL; // remove '&'
-        command->argc--;
-    } else {
-        command->background = 0;
-        command->argv[command->argc] = NULL;     // ensure NULL-terminated
-    }
+    
 
     pid = fork();
     if (pid < 0) {
@@ -139,4 +159,16 @@ int run_command(struct Command *command) {
         return -1;
     }
     return 0;
+}
+
+void handle_background(struct Command *command) { 
+    // handle trailing '&'
+    if (command->argc > 0 && mystrcmp(command->argv[command->argc - 1], "&") == 0) {
+        command->background = 1;
+        command->argv[command->argc - 1] = NULL; // remove '&'
+        command->argc--;
+    } else {
+        command->background = 0;
+        command->argv[command->argc] = NULL;     // ensure NULL-terminated
+    }
 }
