@@ -1,6 +1,7 @@
 #include "mystring.h"
 #include "myfunctions.h"
 #include "jobs.h"
+#include "myheap.h"
 #include <stdio.h> //remove later
 
 
@@ -16,13 +17,38 @@ int main(int argc, char *argv[], char *envp[])
       if (result == 1) break; // exit the shell
       
 
-    // Test 4: bad command (should print "execve failed")
-    command.argv[0] = "/bin/does-not-exist";
-    command.argv[1] = NULL;
-    command.argc = 1;
-    command.background = 0;
-    printf("Running: /bin/does-not-exist\n");
-    run_command(&command);
+ /*char *p1 = alloc(20);
+    if (p1 == NULL) {
+        printf("alloc failed for p1\n");
+        return 1;
+    }
+    mystrcpy(p1, "hello");
+    printf("p1 = %s\n", p1);
+
+    // Allocate another block
+    char *p2 = alloc(30);
+    if (p2 == NULL) {
+        printf("alloc failed for p2\n");
+        return 1;
+    }
+    mystrcpy(p2, "world!");
+    printf("p2 = %s\n", p2);
+
+    // Show both still exist
+    printf("Together: %s %s\n", p1, p2);
+
+    // Reset the heap
+    free_all();
+    printf("Heap reset done\n");
+
+    // Allocate again after free_all()
+    char *p3 = alloc(15);
+    if (p3 == NULL) {
+        printf("alloc failed for p3\n");
+        return 1;
+    }
+    mystrcpy(p3, "new");
+    printf("p3 = %s\n", p3); */
 
       
       

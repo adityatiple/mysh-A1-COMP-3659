@@ -101,52 +101,6 @@ int get_command(struct Command *command) {
     return input_size - start;
 }
 
-/* int run_command(struct Command *command) {
-
-    //char * const newargv[] = {"/bin/ls", "-al", NULL};
-    char * const newenvp[] = {NULL};
-
-    // Guard clause: nothing to execute (NULL cmd, zero args, or missing program name).
-    if (!command || command->argc == 0 || !command->argv[0])
-        return 0;
-
-    // handle trailing '&'
-    if (command->argc > 0 && mystrcmp(command->argv[command->argc - 1], "&") == 0) {
-        command->background = 1; // setting background to 1 since 
-        command->argv[command->argc -1] = NULL; // remove '&'
-    }
-    //calling fork to invoke child process.
-    pid_t pid = fork();
-
-    if (pid < 0) {
-        write(2,"fork failed\n",12);
-        return -1;
-    }
-
-     if (pid == 0) {
-        // child: NOTE execve does NOT search PATH
-        // requires absolute/relative path in argv[0] (e.g., "/bin/ls")
-
-        //execve(command->argv[0], command->argv, NULL);
-        execve(command->argv[0], command->argv, newenvp);
-     }
-
-    else {            
-        // only reached if execve fails
-        write(2, "execve failed\n", 14);
-        _exit(1); 
-        }
-
-    int status = 0;
-    if (pid > 0 && command->background == 1) 
-        return 0;
-    else {
-        waitpid(pid, &status, 0);
-    }
-
-    return 0; // TO DO
-}*/
-
 int run_command(struct Command *command) {
     char * const newenvp[] = {NULL};
     int status = 0;
