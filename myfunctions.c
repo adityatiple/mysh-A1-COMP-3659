@@ -101,8 +101,10 @@ int get_command(struct Command *command) {
     return input_size - start;
 }
 
-int run_command(struct Command *command) {
+/* int run_command(struct Command *command) {
 
+    //char * const newargv[] = {"/bin/ls", "-al", NULL};
+    char * const newenvp[] = {NULL};
 
     // Guard clause: nothing to execute (NULL cmd, zero args, or missing program name).
     if (!command || command->argc == 0 || !command->argv[0])
@@ -124,7 +126,9 @@ int run_command(struct Command *command) {
      if (pid == 0) {
         // child: NOTE execve does NOT search PATH
         // requires absolute/relative path in argv[0] (e.g., "/bin/ls")
-        execve(command->argv[0], command->argv, NULL);
+
+        //execve(command->argv[0], command->argv, NULL);
+        execve(command->argv[0], command->argv, newenvp);
      }
 
     else {            
@@ -134,13 +138,51 @@ int run_command(struct Command *command) {
         }
 
     int status = 0;
-    if (pid > 0 && command->background) 
+    if (pid > 0 && command->background == 1) 
         return 0;
     else {
         waitpid(pid, &status, 0);
     }
 
-
-
     return 0; // TO DO
+}*/
+
+int run_command(struct Command *command) {
+    char * const newenvp[] = {NULL};
+    int status = 0;
+    pid_t pid;
+
+    if (!command || command->argc == 0 || !command->argv[0])
+        return 0;
+
+    // handle trailing '&'
+    if (command->argc > 0 && mystrcmp(command->argv[command->argc - 1], "&") == 0) {
+        command->background = 1;
+        command->argv[command->argc - 1] = NULL; // remove '&'
+        command->argc--;
+    } else {
+        command->background = 0;
+        command->argv[command->argc] = NULL;     // ensure NULL-terminated
+    }
+
+    pid = fork();
+    if (pid < 0) {
+        write(2, "fork failed\n", 12);
+        return -1;
+    } else if (pid == 0) {
+        if (execve(command->argv[0], command->argv, NULL) == -1) { // execve always runs, when failed returns -1
+            write(2, "execve failed\n", 14);
+            _exit(1); // 127 only child exits here on failure
+        }
+    }
+
+    if (command->background) {        
+        return 0; // don't wait; keep shell alive
+    }
+    
+    if (waitpid(pid, &status, 0) < 0) {
+        write(2, "waitpid failed\n", 15);
+        return -1;
+    }
+    return 0;
 }
