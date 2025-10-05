@@ -8,7 +8,7 @@
 #include <string.h>
 #include "jobs.h"
 
-/*************** ERROR HANDLING FUNCTIONS **************/
+/*************** HELPER FUNCTIONS **************/
 
 /* returns the index of the first non whitespace character - needed for tokenizing*/
 int start_char(char *input_buffer, int bytes_read) {
@@ -20,15 +20,14 @@ int start_char(char *input_buffer, int bytes_read) {
     return bytes_read; // all characters are whitespace
 }
 
-/*  */
-int exit_command(char* input_buffer, int start) {
+/*int exit_command(char* input_buffer, int start) {
     // strcmp returns 0 when the strings are identical.
-    if (mystrcmp(input_buffer + start, "exit") == 0) {
-        write(1, "Exiting shell...\n", 17);
+    if (mystrcmp(input_buffer + start, "exit") == 0) {        
         return 1; // signal to main() to exit
     }
     return 0; // Not the exit command
-}
+}*/
+
 
 int char_limit(ssize_t input_size, int max_limit, char *input_buffer) {
     if (input_size > max_limit) {
@@ -42,23 +41,49 @@ int char_limit(ssize_t input_size, int max_limit, char *input_buffer) {
     }
     return 0;
 }
-static char *arena_ndup(const char *s, unsigned int n) {
-    char *p = alloc(n + 1);
-    if (!p) return NULL;
-    for (unsigned int i = 0; i < n; i++) {
-        p[i] = s[i];
+
+int tokenize_command(int i,int input, char *buffer, struct Command *command) {
+
+    /* tokenize: spaces/tabs; '&' is its own token */
+    while (i < input && command->argc < MAX_ARGS) {
+        /* skip ws */
+        while (i < input && (buffer[i] == ' ' || buffer[i] == '\t')) i++;
+        if (i >= input || buffer[i] == '\0') break;
+
+        if (buffer[i] == '&') {
+            char *ampersand = mystrdup("&");
+            if (!ampersand) { write(2, "alloc failed\n", 13); return -1; }
+            command->argv[command->argc++] = ampersand;
+            i++;
+            continue;
+        }
+
+        int start = i;
+        while (i < input &&
+               buffer[i] != ' ' && buffer[i] != '\t' &&
+               buffer[i] != '&' && buffer[i] != '\0') {
+            i++;
+        }
+        unsigned int len = (unsigned int)(i - start);
+        if (len > 0) {
+            char *tok = arena_ndup(buffer + start, len);
+            if (!tok) { write(2, "alloc failed\n", 13); return -1; }
+            command->argv[command->argc++] = tok;
+        }
+        /* loop continues; if we stopped on '&', it will be handled next */
     }
-    p[n] = '\0';
-    return p;
+
 }
 
+
+
 int get_command(struct Command *command) {
-    char input_buffer[MAX_CH + 1];
+    char buffer[MAX_CH + 1];  //+1 for "/0"
 
     /* reset per-command arena */
     free_all();
 
-    /* init */
+    /* Resets and initializes */
     command->argc = 0;
     command->background = 0;
     for (int i = 0; i < MAX_ARGS + 1; i++) {
@@ -69,59 +94,35 @@ int get_command(struct Command *command) {
     write(1, "mysh $ ", 7);
 
     /* read (cap at MAX_CH) */
-    ssize_t nread = read(0, input_buffer, MAX_CH);
-    if (nread <= 0) return -1;                 // EOF or error
-    input_buffer[nread] = '\0';
+    ssize_t input = read(0, buffer, MAX_CH);
+    if (input <= 0) return 0;  //for EOF and error
+    buffer[input] = '\0';
 
     /* too long? */
-    if (char_limit(nread, MAX_CH, input_buffer)) return 0;
+    if (char_limit(input, MAX_CH, buffer)) {
+        return 0;
+    }
+    
+    /* skip leading ws */
+    int i = start_char(buffer, (int)input); // i - index of first non white-space
+    if (i >= input)  {
+        return 0; // only whitespace
+    }
 
     /* strip trailing newline */
-    if (nread > 0 && input_buffer[nread - 1] == '\n') {
-        input_buffer[nread - 1] = '\0';
-        nread--;
+    if (input > 0 && buffer[input - 1] == '\n') {
+        buffer[input - 1] = '\0';
+        input--;
     }
-
-    /* skip leading ws */
-    int i = start_char(input_buffer, (int)nread);
-    if (i >= nread) return 0;                  // only whitespace
 
     /* exit? */
-    if (mystrcmp(input_buffer + i, "exit") == 0) return 1;
-
-
-
-
-
-    /* tokenize: spaces/tabs; '&' is its own token */
-    while (i < nread && command->argc < MAX_ARGS) {
-        /* skip ws */
-        while (i < nread && (input_buffer[i] == ' ' || input_buffer[i] == '\t')) i++;
-        if (i >= nread || input_buffer[i] == '\0') break;
-
-        if (input_buffer[i] == '&') {
-            char *amp = arena_ndup("&", 1);
-            if (!amp) { write(2, "alloc failed\n", 13); return -1; }
-            command->argv[command->argc++] = amp;
-            i++;
-            continue;
-        }
-
-        int start = i;
-        while (i < nread &&
-               input_buffer[i] != ' ' && input_buffer[i] != '\t' &&
-               input_buffer[i] != '&' && input_buffer[i] != '\0') {
-            i++;
-        }
-        unsigned int len = (unsigned int)(i - start);
-        if (len > 0) {
-            char *tok = arena_ndup(input_buffer + start, len);
-            if (!tok) { write(2, "alloc failed\n", 13); return -1; }
-            command->argv[command->argc++] = tok;
-        }
-        /* loop continues; if we stopped on '&', it will be handled next */
+    if (mystrcmp(buffer + i, "exit") == 0) {
+        write(1, "Exiting shell...\n", 17);
+        return 1;
     }
 
+    int int_input = (int)input;
+    int tokenize_command(i,int_input, buffer, command);
 
 
 
@@ -134,10 +135,11 @@ int run_command(struct Command *command) {
     int status = 0;
     pid_t pid;
 
-    if (!command || command->argc == 0 || !command->argv[0])
-        return 0;
+    if (!command || command->argc == 0 || !command->argv[0]) {
+        return 0;   
+    }
 
-    
+    handle_background(command);
 
     pid = fork();
     if (pid < 0) {

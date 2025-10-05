@@ -17,7 +17,45 @@ static void debug_print_command(const struct Command *cmd) {
 int main(int argc, char *argv[], char *envp[])
 {    struct Command cmd;
 
-    for (;;) {
+    // Test 1: /bin/ls -l
+    cmd.argv[0] = "/bin/ls";
+    cmd.argv[1] = "-l";
+    cmd.argv[2] = NULL;
+    cmd.argc = 2;
+    cmd.background = 0;
+    printf("Running: /bin/ls -l\n");
+    run_command(&cmd);
+
+    // Test 2: /bin/echo hello world
+    cmd.argv[0] = "/bin/echo";
+    cmd.argv[1] = "hello";
+    cmd.argv[2] = "world";
+    cmd.argv[3] = NULL;
+    cmd.argc = 3;
+    cmd.background = 0;
+    printf("Running: /bin/echo hello world\n");
+    run_command(&cmd);
+
+    // Test 3: /bin/sleep 2 &
+    cmd.argv[0] = "/bin/sleep";
+    cmd.argv[1] = "2";
+    cmd.argv[2] = NULL;
+    cmd.argc = 2;
+    cmd.background = 1;
+    printf("Running in background: /bin/sleep 2\n");
+    run_command(&cmd);
+
+    // Test 4: bad command (should print "execve failed")
+    cmd.argv[0] = "/bin/does-not-exist";
+    cmd.argv[1] = NULL;
+    cmd.argc = 1;
+    cmd.background = 0;
+    printf("Running: /bin/does-not-exist\n");
+    run_command(&cmd);
+
+    //---------------------------------------------GET CMD STUFF-------------------------------------------
+
+   /* for (;;) {
         int rc = get_command(&cmd);
         if (rc == 1) {               // user typed "exit"
             break;
@@ -36,7 +74,9 @@ int main(int argc, char *argv[], char *envp[])
         // Execute
         if (run_command(&cmd) < 0) {
             perror("run_command");
-        }
+        }*/
+
+ //-------------------------------------------HEAP STUFFF---------------------------------------------------
    
   //struct Command command;
   //int exitShell = 0;
@@ -89,7 +129,7 @@ int main(int argc, char *argv[], char *envp[])
 
 
       /* TO DO: prompt for and read command line */
-    }
+    
   
 //  return 0;
 }

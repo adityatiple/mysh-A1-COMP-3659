@@ -46,3 +46,12 @@ char *mystrcpy(char *dest, const char *src)
     *d = '\0';             // add the final null terminator
     return dest;           // return original dest pointer
 }
+
+
+char *mystrdup(const char *s) {
+    unsigned int n = mystrlen(s);     // your strlen
+    char *p = alloc(n + 1);
+    if (!p) return NULL;
+    mystrcpy(p, s);                    // your strcpy
+    return p;
+}
