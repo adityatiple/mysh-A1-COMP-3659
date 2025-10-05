@@ -3,7 +3,7 @@
 
 #include "jobs.h"
 
-char *alloc(unsigned int size);
+char *alloc(int size);
 void free_all();
 
 #endif

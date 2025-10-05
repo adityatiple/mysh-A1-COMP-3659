@@ -19,6 +19,7 @@ int main(int argc, char *argv[], char *envp[]) {
             continue;
         }
         run_command(&command);             // runs foreground or backgrounds
+        free_all();                        // resets heap per-command
     }
 
     return 0;  

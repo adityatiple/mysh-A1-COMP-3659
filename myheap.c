@@ -8,7 +8,7 @@ static char heap[HEAP_SIZE];
 static char *freep = heap;
 
 
-char *alloc(unsigned int size) {
+char *alloc(int size) {
     if (freep + size > heap + HEAP_SIZE) {
         // Not enough space left
         return NULL;

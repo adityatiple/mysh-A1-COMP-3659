@@ -97,8 +97,7 @@ void handle_background(struct Command *command) {
 
 //-------------------------------------------------------------------------------------------------------------------------------
 
-int get_command(struct Command *command) {
-    free_all();                                                 // resets heap per-command
+int get_command(struct Command *command) {    
     char buffer[MAX_CH + 1];                                    // input command-line
 
     initialize(command);                                        // intialize argc and argv for new cmd-line
