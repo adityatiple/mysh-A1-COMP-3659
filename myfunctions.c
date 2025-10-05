@@ -10,6 +10,17 @@
 
 /******************************************************** HELPER FUNCTIONS ************************************************************/
 
+void initialize (struct Command *command) {
+
+    /* Resets and initializes */
+    command->argc = 0;
+    command->background = 0;
+    for (int i = 0; i < MAX_ARGS + 1; i++) {
+        command->argv[i] = NULL;
+    }
+
+}
+
 /* returns the index of the first non whitespace character - needed for tokenizing*/
 int start_char(char *input_buffer, int bytes_read) {
     for (int i = 0; i < bytes_read; i++) {
@@ -84,18 +95,13 @@ void handle_background(struct Command *command) {
     }
 }
 
-
+//-------------------------------------------------------------------------------------------------------------------------------
 
 int get_command(struct Command *command) {
+    free_all();                                                 // resets heap per-command
     char buffer[MAX_CH + 1];                                    // input command-line
-    free_all();                                                 // resets heap per-command 
 
-    /* Resets and initializes */
-    command->argc = 0;
-    command->background = 0;
-    for (int i = 0; i < MAX_ARGS + 1; i++) {
-        command->argv[i] = NULL;
-    }
+    initialize(command);                                        // intialize argc and argv for new cmd-line
 
     write(1, "mysh $ ", 7);                                     /* prompt */
     
@@ -104,7 +110,7 @@ int get_command(struct Command *command) {
     buffer[bytes_read] = '\0';
 
     if (char_limit(bytes_read, MAX_CH, buffer)) {    
-        return 0; /* too long? */
+        return 0; /* too long */
     }    
     
     int index = start_char(buffer, (int)bytes_read);            /* first non-whitespace index */
@@ -122,8 +128,7 @@ int get_command(struct Command *command) {
         return 1;
     }
 
-    int num_bytes_read = (int)bytes_read;
-    if (tokenize_command(index, num_bytes_read, buffer, command) == -1)
+    if (tokenize_command(index, (int)bytes_read, buffer, command) == -1)
         return 0;
 
     command->argv[command->argc] = NULL;                        // important!
