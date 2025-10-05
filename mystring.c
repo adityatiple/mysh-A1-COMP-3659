@@ -1,4 +1,5 @@
 #include "mystring.h"
+#include "myheap.h"
 #include <string.h>       /* TO DO: initial cheat! Remove this line and all library dependency evetually */
 #include <unistd.h>      /* for read() and write() */
 
@@ -11,9 +12,9 @@ such as comparing strings for equality, copying strings, etc. Identify and devel
 /**
 Function returns the length of a string.
 **/
-unsigned int mystrlen(const char *s)
+int mystrlen(const char *s)
 {
-  unsigned int len = 0;
+  int len = 0;
     while (s[len] != '\0') {
         len++;
     }
@@ -29,7 +30,8 @@ int mystrcmp(const char *s1, const char *s2)
     s1++;
     s2++;
   }
-   return (unsigned char)*s1 - (unsigned char)*s2;
+   //return (unsigned char)*s1 - (unsigned char)*s2;
+   return (char)*s1 - (char)*s2;
 }
 
 /**
@@ -48,10 +50,19 @@ char *mystrcpy(char *dest, const char *src)
 }
 
 
-char *mystrdup(const char *s) {
-    unsigned int n = mystrlen(s);     // your strlen
-    char *p = alloc(n + 1);
-    if (!p) return NULL;
-    mystrcpy(p, s);                    // your strcpy
-    return p;
+// duplicates bytes in [begin, end) into arena and NUL-terminates
+char *mystrdup(const char *begin, const char *end) {
+    int k = (int)(end - begin);
+    char *new_str = alloc(k + 1);
+
+    if (!new_str) {
+      return NULL;
+    }
+
+    for (int i = 0; i < k; i++) {
+      new_str[i] = begin[i];      
+    }
+
+    new_str[k] = '\0';    
+    return new_str;
 }
