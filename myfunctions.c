@@ -151,7 +151,8 @@ int run_command(struct Command *command) {
         return -1;
     } else if (pid == 0) {
         if (execve(command->argv[0], command->argv, NULL) == -1) { // execve always runs, when failed returns -1
-            write(2, "execve failed\n", 14);
+            write(2, "execve failed, please re-enter command\n", 40);
+            //write(2,"re-enter command\n", 18);
             _exit(1); // 127 only child exits here on failure
         }
     }
