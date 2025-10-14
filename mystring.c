@@ -58,11 +58,20 @@ char *mystrdup(const char *begin, const char *end) {
     if (!new_str) {
       return NULL;
     }
-
     for (int i = 0; i < k; i++) {
       new_str[i] = begin[i];      
     }
-
     new_str[k] = '\0';    
     return new_str;
+}
+
+char *mystrcat(char *dest, const char *src) {
+    int dlen = mystrlen(dest);
+    int i = 0;   
+
+   for (i; src[i] != '\0'; i++){
+    dest[dlen + i] = src[i];
+   }
+    dest[dlen + i] = '\0';
+    return dest;
 }

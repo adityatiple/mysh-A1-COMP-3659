@@ -46,12 +46,12 @@ int char_limit(ssize_t input_size, int max_limit, char *input_buffer) {
 
 int tokenize_command(int i,int input, char *buffer, struct Command *command) {    
     while (i < input && command->argc < MAX_ARGS) { /* tokenize: spaces/tabs; '&' is its own token */
-        /* skip ws */
-        while (i < input && (buffer[i] == ' ' || buffer[i] == '\t')) i++;
+        
+        while (i < input && (buffer[i] == ' ' || buffer[i] == '\t')) /* skip ws */
+             i++;
 
-        if (i >= input || buffer[i] == '\0') {
-            break;
-        }
+        if (i >= input || buffer[i] == '\0') 
+            break;        
 
         if (buffer[i] == '&') {
             char *ampersand = mystrdup("&", "&" + 1);
@@ -93,6 +93,24 @@ void handle_background(struct Command *command) {
         command->background = 0;
         command->argv[command->argc] = NULL;     // ensure NULL-terminated
     }
+}
+
+char *resolve_path(const char *command) {
+    /* Check if command already contains a '/' → treat as full path */
+    for (const char *p = command; *p != '\0'; p++) {
+        if (*p == '/') {
+            return (char *)command;  // already absolute/relative
+        }
+    }
+    const char *prefix = "/usr/bin/";
+    int total = mystrlen(prefix) + mystrlen(command) + 1;
+
+    char *path = alloc(total);
+    if (!path) return NULL;
+
+    mystrcpy(path, prefix);
+    mystrcat(path, command);
+    return path;
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -150,10 +168,15 @@ int run_command(struct Command *command) {
         write(2, "fork failed\n", 12);
         return -1;
     } else if (pid == 0) {
-        if (execve(command->argv[0], command->argv, NULL) == -1) { // execve always runs, when failed returns -1
+        char *path = resolve_path(command->argv[0]);
+        if (!path) {
+            write(2, "alloc failed\n", 13);
+            _exit(1);
+        }
+
+        if (execve(path, command->argv, NULL) == -1) { // execve always runs, when failed returns -1
             write(2, "execve failed, please re-enter command\n", 40);
-            //write(2,"re-enter command\n", 18);
-            _exit(1); // 127 only child exits here on failure
+            _exit(1); 
         }
     }
 
