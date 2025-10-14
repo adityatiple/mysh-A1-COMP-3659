@@ -22,24 +22,27 @@ void initialize (struct Command *command) {
 }
 
 /* returns the index of the first non whitespace character - needed for tokenizing*/
-int start_char(char *input_buffer, int bytes_read) {
+int start_char(char *buffer, int bytes_read) {
     for (int i = 0; i < bytes_read; i++) {
-        if (input_buffer[i] != ' ' && input_buffer[i] != '\t' && input_buffer[i] != '\n') {
+        if (buffer[i] != ' ' && buffer[i] != '\t' && buffer[i] != '\n') {
             return i; // return first non-whitespace character
         }
     }
     return bytes_read; // all characters are whitespace
 }
 
-int char_limit(ssize_t input_size, int max_limit, char *input_buffer) {
+int char_limit(ssize_t input_size, int max_limit, char *buffer) {
+    int too_long = 0;
     if (input_size > max_limit) {
-        if (input_buffer[max_limit] != '\n') {
-            // Clear input buffer.
-            char discard;
-            while (read(0, &discard, 1) > 0 && discard != '\n');
-            write(1, "Error: Input exceeds maximum character limit.\n", 46);
-            return 1; // too long
-        }
+        too_long = 1;
+    } else if (input_size == max_limit && buffer[max_limit - 1] != '\n') {
+        too_long = 1;
+    }    
+    if (too_long) {
+    // Clear input buffer.
+        char discard;
+        while (read(0, &discard, 1) > 0 && discard != '\n'); // read returns > 0 bytes read            
+        return 1; // too long
     }
     return 0;
 }
@@ -122,12 +125,13 @@ int get_command(struct Command *command) {
 
     write(1, "mysh $ ", 7);                                     /* prompt */
     
-    ssize_t bytes_read = read(0, buffer, MAX_CH);               /* bytes read from buffer */
+    ssize_t bytes_read = read(0, buffer, MAX_CH + 1);               /* bytes read from buffer */
     if (bytes_read <= 0) return 0;                              //for EOF and error
     buffer[bytes_read] = '\0';
 
-    if (char_limit(bytes_read, MAX_CH, buffer)) {    
-        return 0; /* too long */
+    if (char_limit(bytes_read, MAX_CH, buffer)) {   
+        write(1, "Error: Input exceeds maximum character limit.\n", 46); /* too long */
+        return 0;                                                        /*repromt*/
     }    
     
     int index = start_char(buffer, (int)bytes_read);            /* first non-whitespace index */
@@ -173,17 +177,14 @@ int run_command(struct Command *command) {
             write(2, "alloc failed\n", 13);
             _exit(1);
         }
-
         if (execve(path, command->argv, NULL) == -1) { // execve always runs, when failed returns -1
             write(2, "execve failed, please re-enter command\n", 40);
             _exit(1); 
         }
     }
-
     if (command->background) {        
         return 0; // don't wait; keep shell alive
-    }
-    
+    }    
     if (waitpid(pid, &status, 0) < 0) {
         write(2, "waitpid failed\n", 15);
         return -1;

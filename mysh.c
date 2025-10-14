@@ -8,11 +8,11 @@
 int main(int argc, char *argv[], char *envp[]) {    
     
     struct Command command;
-    int cmd_status;
+    int command_status;
 
     while(1) {
-        cmd_status = get_command(&command);
-        if (cmd_status == 1) {              // "exit" was typed
+        command_status = get_command(&command);
+        if (command_status == 1) {              // "exit" was typed
             break;
         }
         if (command.argc == 0) {           // blank line / parsing error
