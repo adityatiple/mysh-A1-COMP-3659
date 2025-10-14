@@ -8,17 +8,6 @@
 
 /******************************************************** HELPER FUNCTIONS ************************************************************/
 
-void initialize (struct Command *command) {
-
-    /* Resets and initializes */
-    command->argc = 0;
-    command->background = 0;
-    for (int i = 0; i < MAX_ARGS + 1; i++) {
-        command->argv[i] = NULL;
-    }
-
-}
-
 /* returns the index of the first non whitespace character - needed for tokenizing*/
 int start_char(char *buffer, int bytes_read) {
     for (int i = 0; i < bytes_read; i++) {
@@ -84,19 +73,6 @@ int tokenize_command(int i,int input, char *buffer, struct Command *command) {
     return 0;
 }
 
-
-void handle_background(struct Command *command) { 
-        // handle trailing '&'
-    if (command->argc > 0 && mystrcmp(command->argv[command->argc - 1], "&") == 0) {
-        command->background = 1;
-        command->argv[command->argc - 1] = NULL; // remove '&'
-        command->argc--;
-    } else {
-        command->background = 0;
-        command->argv[command->argc] = NULL;     // ensure NULL-terminated
-    }
-}
-
 char *resolve_path(const char *command) {
     /* Check if command already contains a '/' → treat as full path */
     for (const char *p = command; *p != '\0'; p++) {
@@ -120,7 +96,7 @@ char *resolve_path(const char *command) {
 int get_command(struct Command *command) {    
     char buffer[MAX_CH + 1];                                                // input command-line
 
-    initialize(command);                                                    // intialize argc and argv for new cmd-line
+    initialize_command(command);                                            // intialize argc and argv for new cmd-line
 
     write(1, "mysh $ ", 7);                                                 /* prompt */
     
@@ -155,40 +131,28 @@ int get_command(struct Command *command) {
     return 0;
 }
 
-int run_command(struct Command *command) {
-    char * const newenvp[] = {NULL};
-    int status = 0;
-    pid_t pid;
+pid_t run_command(struct Command *command) {
+    if (!command || command->argc == 0 || !command->argv[0])
+        return 0;
 
-    if (!command || command->argc == 0 || !command->argv[0]) {
-        return 0;   
-    }
-
-    handle_background(command);
-
-    pid = fork();
+    pid_t pid = fork();
     if (pid < 0) {
         write(2, "fork failed\n", 12);
         return -1;
-    } else if (pid == 0) {
+    }
+
+    if (pid == 0) {
         char *path = resolve_path(command->argv[0]);
         if (!path) {
             write(2, "alloc failed\n", 13);
             _exit(1);
         }
-        if (execve(path, command->argv, NULL) == -1) {                      // execve always runs, when failed returns -1
-            write(2, "execve failed, please re-enter command\n", 40);
-            _exit(1); 
-        }
+        execve(path, command->argv, (char *const[]){NULL});
+        write(2, "execve failed, please re-enter command\n", 40);
+        _exit(1);
     }
-    if (command->background) {        
-        return 0;                                                            // don't wait; keep shell alive
-    }    
-    if (waitpid(pid, &status, 0) < 0) {
-        write(2, "waitpid failed\n", 15);
-        return -1;
-    }
-    return 0;
+
+    return pid; // parent
 }
 
 

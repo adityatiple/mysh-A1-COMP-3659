@@ -8,7 +8,7 @@
 initialize: Function resets the Command structure by setting arg count and background to 0. Also setting argv array to NULL.
             This ensures that no residual data from a previous command interferes with the next one. 
 
-@param command: Pointer to the Command structure to initialize.
+@param command: Pointer to the Command structure.
 */
 void initialize(struct Command *command);
 
@@ -59,9 +59,16 @@ tokenize_command: Function splits user inputs into tokens to make commands.
 int tokenize_command(int i, int input, char *buffer, struct Command *command);
 
 /*
+handle_background: Function handles background requests, specifically checks for the ampersand (&).
+                   As this is indicative of whether wants to run a program in the background. If 
+                   the '&' is found in the line of input, background is set to 1 and '&' is removed.
 
+                   Otherwise, if no '&' is found background is set to 0 and the argv array is explicitly set
+                   to NULL-terminate, which makes the command run in foreground by default.
+
+@param command: Pointer to the Command structure.
 */
-void handle_background(struct Command *command);
+//void handle_background(struct Command *command);
 char *resolve_path(const char *cmd);
 
 int get_command(struct Command *command);

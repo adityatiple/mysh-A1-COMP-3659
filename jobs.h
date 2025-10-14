@@ -21,8 +21,10 @@ struct Job {
 };
 
 /* init helpers */
-void initialize_command(struct Command *cmd);
+void initialize_command(struct Command *command);
 void initialize_job(struct Job *job);
+void handle_background(struct Job *job);
+
 
 /* adapters */
 int get_job(struct Job *job);  // 1=exit, 0=blank/error, 2=ok
