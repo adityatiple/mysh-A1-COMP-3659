@@ -4,8 +4,6 @@
 #include <sys/wait.h>
 #include "mystring.h"
 #include "myheap.h"
-#include <stdio.h>
-#include <string.h>
 #include "jobs.h"
 
 /******************************************************** HELPER FUNCTIONS ************************************************************/
@@ -86,6 +84,7 @@ int tokenize_command(int i,int input, char *buffer, struct Command *command) {
     return 0;
 }
 
+
 void handle_background(struct Command *command) { 
         // handle trailing '&'
     if (command->argc > 0 && mystrcmp(command->argv[command->argc - 1], "&") == 0) {
@@ -119,40 +118,40 @@ char *resolve_path(const char *command) {
 //-------------------------------------------------------------------------------------------------------------------------------
 
 int get_command(struct Command *command) {    
-    char buffer[MAX_CH + 1];                                    // input command-line
+    char buffer[MAX_CH + 1];                                                // input command-line
 
-    initialize(command);                                        // intialize argc and argv for new cmd-line
+    initialize(command);                                                    // intialize argc and argv for new cmd-line
 
-    write(1, "mysh $ ", 7);                                     /* prompt */
+    write(1, "mysh $ ", 7);                                                 /* prompt */
     
-    ssize_t bytes_read = read(0, buffer, MAX_CH + 1);               /* bytes read from buffer */
-    if (bytes_read <= 0) return 0;                              //for EOF and error
+    ssize_t bytes_read = read(0, buffer, MAX_CH + 1);                       /* bytes read from buffer */
+    if (bytes_read <= 0) return 0;                                          //for EOF and error
     buffer[bytes_read] = '\0';
 
     if (char_limit(bytes_read, MAX_CH, buffer)) {   
-        write(1, "Error: Input exceeds maximum character limit.\n", 46); /* too long */
-        return 0;                                                        /*repromt*/
+        write(1, "Error: Input exceeds maximum character limit.\n", 46);    /* too long */
+        return 0;                                                           /*repromt*/
     }    
     
-    int index = start_char(buffer, (int)bytes_read);            /* first non-whitespace index */
-    if (index >= bytes_read)  {                                 // i - index of first non white-space
-        return 0;                                   
+    int index = start_char(buffer, (int)bytes_read);                        /* first non-whitespace index */
+    if (index >= bytes_read)  {                                             // i - index of first non white-space
+        return 0;                                               
     }
     
-    if (bytes_read > 0 && buffer[bytes_read - 1] == '\n') {     /* strip trailing newline */
+    if (bytes_read > 0 && buffer[bytes_read - 1] == '\n') {                 /* strip trailing newline */
         buffer[bytes_read - 1] = '\0';
         bytes_read--;
     }
 
     if (mystrcmp(buffer + index, "exit") == 0) {
-        write(1, "Exiting shell...\n", 17);                     /* exit */
+        write(1, "Exiting shell...\n", 17);                                 /* exit */
         return 1;
     }
 
     if (tokenize_command(index, (int)bytes_read, buffer, command) == -1)
         return 0;
 
-    command->argv[command->argc] = NULL;                        // important!
+    command->argv[command->argc] = NULL;                                    // important!
     return 0;
 }
 
@@ -177,13 +176,13 @@ int run_command(struct Command *command) {
             write(2, "alloc failed\n", 13);
             _exit(1);
         }
-        if (execve(path, command->argv, NULL) == -1) { // execve always runs, when failed returns -1
+        if (execve(path, command->argv, NULL) == -1) {                      // execve always runs, when failed returns -1
             write(2, "execve failed, please re-enter command\n", 40);
             _exit(1); 
         }
     }
     if (command->background) {        
-        return 0; // don't wait; keep shell alive
+        return 0;                                                            // don't wait; keep shell alive
     }    
     if (waitpid(pid, &status, 0) < 0) {
         write(2, "waitpid failed\n", 15);

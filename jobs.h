@@ -2,7 +2,7 @@
 #define JOBS_H
 
 #define MAX_ARGS 16     /* TO DO */
-#define MAX_CH 5     /* TO DO */
+#define MAX_CH 256     /* TO DO */
 
 struct Command
 {

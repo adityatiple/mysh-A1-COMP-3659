@@ -2,7 +2,6 @@
 #include "myfunctions.h"
 #include "jobs.h"
 #include "myheap.h"
-#include <stdio.h> //remove later
 
 
 int main(int argc, char *argv[], char *envp[]) {    
