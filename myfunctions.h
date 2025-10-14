@@ -70,8 +70,10 @@ handle_background: Function handles background requests, specifically checks for
 */
 //void handle_background(struct Command *command);
 char *resolve_path(const char *cmd);
+void redirect_input(int in_fd);
+void redirect_output(int out_fd);
 
 int get_command(struct Command *command);
-int run_command(struct Command *command);
+pid_t run_command(struct Command *command, int in_fd, int out_fd);
 
 #endif

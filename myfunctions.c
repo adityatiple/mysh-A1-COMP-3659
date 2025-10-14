@@ -91,6 +91,44 @@ char *resolve_path(const char *command) {
     return path;
 }
 
+void redirect_input(int in_fd) {
+    if (in_fd < 0)
+        return; // nothing to redirect
+
+    int alias_fd = dup(in_fd);
+    if (alias_fd == -1) {
+        write(2, "dup(in) failed\n", 15);
+        _exit(1);
+    }
+
+    if (dup2(alias_fd, 0) == -1) {
+        write(2, "dup2(in) failed\n", 16);
+        _exit(1);
+    }
+
+    close(in_fd);
+    close(alias_fd);
+}
+
+void redirect_output(int out_fd) {
+    if (out_fd < 0)
+        return; // nothing to redirect
+
+    int alias_fd = dup(out_fd);
+    if (alias_fd == -1) {
+        write(2, "dup(out) failed\n", 16);
+        _exit(1);
+    }
+
+    if (dup2(alias_fd, 1) == -1) {
+        write(2, "dup2(out) failed\n", 17);
+        _exit(1);
+    }
+
+    close(out_fd);
+    close(alias_fd);
+}
+
 //-------------------------------------------------------------------------------------------------------------------------------
 
 int get_command(struct Command *command) {    
@@ -131,7 +169,7 @@ int get_command(struct Command *command) {
     return 0;
 }
 
-pid_t run_command(struct Command *command) {
+pid_t run_command(struct Command *command, int in_fd, int out_fd) {
     if (!command || command->argc == 0 || !command->argv[0])
         return 0;
 
@@ -141,13 +179,16 @@ pid_t run_command(struct Command *command) {
         return -1;
     }
 
-    if (pid == 0) {
+    if (pid == 0) {        
+        redirect_input(in_fd);
+        redirect_output(out_fd);
+
         char *path = resolve_path(command->argv[0]);
         if (!path) {
             write(2, "alloc failed\n", 13);
             _exit(1);
         }
-        execve(path, command->argv, (char *const[]){NULL});
+        execve(path, command->argv, NULL);
         write(2, "execve failed, please re-enter command\n", 40);
         _exit(1);
     }
