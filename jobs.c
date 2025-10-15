@@ -145,7 +145,12 @@ int parse_output_redirection(struct Job *job) {
 
 /* modifies job->background and strips '&' */
 void handle_background(struct Job *job) {
-    struct Command *cmd = &job->pipeline[0];
+
+    int last = 0;
+    if (job->num_stages == 2) {
+        last = 1;
+    }
+    struct Command *cmd = &job->pipeline[last];
     if (cmd->argc > 0 && cmd->argv[cmd->argc - 1] &&
         mystrcmp(cmd->argv[cmd->argc - 1], "&") == 0) {
         cmd->argv[cmd->argc - 1] = NULL;
@@ -256,7 +261,7 @@ int run_job(struct Job *job) {
         return 0;
     }
 
-    int status = wait_for_foreground(p0, p1, fds.use_pipe);
+    int status = wait_for_foreground(p0, p1,use_pipe);
 
     return 0;
 }
