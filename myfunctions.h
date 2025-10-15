@@ -58,6 +58,10 @@ tokenize_command: Function splits user inputs into tokens to make commands.
  */
 int tokenize_command(int i, int input, char *buffer, struct Command *command);
 
+int tokenize_operator(int i, char *buffer, struct Command *command);
+
+int tokenize_word(int i, int input, char *buffer, struct Command *command);
+
 /*
 handle_background: Function handles background requests, specifically checks for the ampersand (&).
                    As this is indicative of whether wants to run a program in the background. If 

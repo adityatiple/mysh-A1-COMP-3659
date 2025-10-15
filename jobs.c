@@ -47,6 +47,8 @@ int get_job(struct Job *job) {
     if (job->pipeline[0].argc == 0) return 0;  // blank or error
 
     handle_background(job);
+    if (parse_input_redirection(job)  < 0) return 0;  // strips "< file" and sets infile_path
+    if (parse_output_redirection(job) < 0) return 0;  // strips "> file" and sets outfile_path
     job->num_stages = 1;
     return 2;
 }

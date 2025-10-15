@@ -34,44 +34,73 @@ int char_limit(ssize_t input_size, int max_limit, char *buffer) {
     return 0;
 }
 
-int tokenize_command(int i,int input, char *buffer, struct Command *command) {    
-    while (i < input && command->argc < MAX_ARGS) { /* tokenize: spaces/tabs; '&' is its own token */
-        
-        while (i < input && (buffer[i] == ' ' || buffer[i] == '\t')) /* skip ws */
-             i++;
-
-        if (i >= input || buffer[i] == '\0') 
-            break;        
-
-        if (buffer[i] == '&') {
-            char *ampersand = mystrdup("&", "&" + 1);
-            if (!ampersand) { 
-                write(2, "alloc failed\n", 13); 
-                return -1; 
-            }
-            command->argv[command->argc++] = ampersand;
+int tokenize_command(int i, int input, char *buffer, struct Command *command) {
+    while (i < input && command->argc < MAX_ARGS) {
+        /* skip whitespace */
+        while (i < input && (buffer[i] == ' ' || buffer[i] == '\t'))
             i++;
+
+        if (i >= input || buffer[i] == '\0')
+            break;
+
+        /* decide what to do */
+        if (buffer[i] == '&' || buffer[i] == '<' || buffer[i] == '>') {
+            i = tokenize_operator(i, buffer, command);
+            if (i < 0) return -1;
             continue;
+        } else {
+            i = tokenize_word(i, input, buffer, command);
+            if (i < 0) return -1;
         }
-
-        int start = i;
-        while (i < input &&
-               buffer[i] != ' ' && buffer[i] != '\t' &&
-               buffer[i] != '&' && buffer[i] != '\0') {
-            i++;
-        }
-        int len = (int)(i - start);
-        if (len > 0) {
-            char *token = mystrdup(buffer + start, buffer + start + len);
-            if (!token) { 
-                write(2, "alloc failed\n", 13);
-                return -1; }
-            command->argv[command->argc++] = token;
-        }
-        /* loop continues; if we stopped on '&', it will be handled next */
     }
     return 0;
 }
+
+int tokenize_operator(int i, char *buffer, struct Command *command) {
+    if (command->argc >= MAX_ARGS) {
+        write(2, "too many arguments\n", 19);
+        return -1;
+    }
+
+    char *tok = mystrdup(buffer + i, buffer + i + 1);
+    if (!tok) {
+        write(2, "alloc failed\n", 13);
+        return -1;
+    }
+
+    command->argv[command->argc++] = tok;
+    i++;   // move past this operator
+    return i;
+}
+
+int tokenize_word(int i, int input, char *buffer, struct Command *command) {
+    int start = i;
+    while (i < input &&
+           buffer[i] != ' ' && buffer[i] != '\t' &&
+           buffer[i] != '&' && buffer[i] != '<' && buffer[i] != '>' &&
+           buffer[i] != '\0') {
+        i++;
+    }
+
+    int len = i - start;
+    if (len > 0) {
+        if (command->argc >= MAX_ARGS) {
+            write(2, "too many arguments\n", 19);
+            return -1;
+        }
+
+        char *token = mystrdup(buffer + start, buffer + start + len);
+        if (!token) {
+            write(2, "alloc failed\n", 13);
+            return -1;
+        }
+
+        command->argv[command->argc++] = token;
+    }
+
+    return i;
+}
+
 
 char *resolve_path(const char *command) {
     /* Check if command already contains a '/' → treat as full path */
