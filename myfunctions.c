@@ -44,7 +44,7 @@ int tokenize_command(int i, int input, char *buffer, struct Command *command) {
             break;
 
         /* decide what to do */
-        if (buffer[i] == '&' || buffer[i] == '<' || buffer[i] == '>') {
+        if (buffer[i] == '&' || buffer[i] == '<' || buffer[i] == '>' || buffer[i] == '|') {
             i = tokenize_operator(i, buffer, command);
             if (i < 0) return -1;
             continue;
@@ -78,7 +78,7 @@ int tokenize_word(int i, int input, char *buffer, struct Command *command) {
     while (i < input &&
            buffer[i] != ' ' && buffer[i] != '\t' &&
            buffer[i] != '&' && buffer[i] != '<' && buffer[i] != '>' &&
-           buffer[i] != '\0') {
+           buffer[i] == '|' && buffer[i] != '\0') {
         i++;
     }
 

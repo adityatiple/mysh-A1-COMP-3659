@@ -25,6 +25,16 @@ void initialize_command(struct Command *command);
 void initialize_job(struct Job *job);
 void handle_background(struct Job *job);
 
+int parse_pipeline(struct Job *job);
+int parse_input_redirection(struct Job *job);
+int parse_output_redirection(struct Job *job);
+
+static int find_token(struct Command *cmd, const char *tok);
+static void remove_tokens(struct Command *cmd, int pos, int count);
+
+int parse_pipeline(struct Job *job);
+
+
 
 /* adapters */
 int get_job(struct Job *job);  // 1=exit, 0=blank/error, 2=ok

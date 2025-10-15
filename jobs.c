@@ -25,6 +25,97 @@ void initialize_job(struct Job *job) {
 
 }
 
+static int find_token(struct Command *cmd, const char *tok) {
+    for (int i = 0; i < cmd->argc; i++) {
+        if (cmd->argv[i] && mystrcmp(cmd->argv[i], tok) == 0) 
+        return i;
+    }
+    return -1;
+}
+
+static void remove_tokens(struct Command *cmd, int pos, int count) {
+    int write = pos;
+    for (int read = pos + count; read < (int)cmd->argc; read++, write++) {
+        cmd->argv[write] = cmd->argv[read];
+    }
+    for (int k = write; k < (int)cmd->argc; k++) cmd->argv[k] = NULL;
+    cmd->argc -= count;
+}
+
+int parse_pipeline(struct Job *job) {
+    struct Command *c0 = &job->pipeline[0];
+    int bar = find_token(c0, "|");
+    if (bar < 0) {                      // no pipe
+        job->num_stages = 1;
+        return 0;
+    }
+    if (bar == 0 || bar == (int)c0->argc - 1) {
+        write(2, "syntax error near '|'\n", 22);
+        return -1;
+    }
+
+    // init stage-1
+    initialize_command(&job->pipeline[1]);
+
+    struct Command *c1 = &job->pipeline[1];
+    // move tokens after '|' into stage-1 (pointer move; same arena)
+    for (int i = bar + 1; i < (int)c0->argc; i++) {
+        c1->argv[c1->argc++] = c0->argv[i];
+        c0->argv[i] = NULL;
+    }
+
+    // terminate stage-0 at '|'
+    c0->argv[bar] = NULL;
+    c0->argc = bar;
+
+    job->num_stages = 2;
+
+    // guard: reject more than one pipe
+    if (find_token(c1, "|") >= 0 || find_token(c0, "|") >= 0) {
+        write(2, "pipeline length > 2 not supported\n", 34);
+        return -1;
+    }
+    return 0;
+}
+
+int parse_input_redirection(struct Job *job) {
+    struct Command *c = &job->pipeline[0];
+    int i = find_token(c, "<");
+    if (i < 0) return 0;
+
+    if (i == (int)c->argc - 1) {
+        write(2, "missing filename after '<'\n", 27);
+        return -1;
+    }
+    if (job->infile_path != NULL) {
+        write(2, "multiple input redirections\n", 28);
+        return -1;
+    }
+    job->infile_path = c->argv[i + 1];
+    remove_tokens(c, i, 2);
+    return 0;
+}
+
+int parse_output_redirection(struct Job *job) {
+    unsigned last = (job->num_stages == 2) ? 1u : 0u;
+    struct Command *c = &job->pipeline[last];
+
+    int i = find_token(c, ">");
+    if (i < 0) return 0;
+
+    if (i == (int)c->argc - 1) {
+        write(2, "missing filename after '>'\n", 27);
+        return -1;
+    }
+    if (job->outfile_path != NULL) {
+        write(2, "multiple output redirections\n", 29);
+        return -1;
+    }
+    job->outfile_path = c->argv[i + 1];
+    remove_tokens(c, i, 2);
+    return 0;
+}
+
 /* modifies job->background and strips '&' */
 void handle_background(struct Job *job) {
     struct Command *cmd = &job->pipeline[0];
@@ -46,10 +137,14 @@ int get_job(struct Job *job) {
     if (rc == 1) return 1;                // "exit"
     if (job->pipeline[0].argc == 0) return 0;  // blank or error
 
-    handle_background(job);
+    if (parse_pipeline(job) < 0) return 0;
+
+    
     if (parse_input_redirection(job)  < 0) return 0;  // strips "< file" and sets infile_path
     if (parse_output_redirection(job) < 0) return 0;  // strips "> file" and sets outfile_path
-    job->num_stages = 1;
+
+    handle_background(job);
+    //job->num_stages = 1;
     return 2;
 }
 
