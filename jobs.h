@@ -20,14 +20,29 @@ struct Job {
     int background;            // 0 = foreground, 1 = background
 };
 
+struct FDset{
+    int in_fd;
+    int out_fd;
+    int pipefd[2];
+    int use_pipe;
+} ;
+
 /* init helpers */
 void initialize_command(struct Command *command);
 void initialize_job(struct Job *job);
+
 void handle_background(struct Job *job);
 
 int parse_pipeline(struct Job *job);
 int parse_input_redirection(struct Job *job);
 int parse_output_redirection(struct Job *job);
+
+int setup_redirection(struct Job *job, int *in_fd, int *out_fd);
+
+
+int wait_for_foreground(pid_t p0, pid_t p1, int use_pipe);
+
+
 
 static int find_token(struct Command *cmd, const char *tok);
 static void remove_tokens(struct Command *cmd, int pos, int count);

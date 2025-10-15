@@ -43,6 +43,32 @@ static void remove_tokens(struct Command *cmd, int pos, int count) {
     cmd->argc -= count;
 }
 
+int setup_redirection(struct Job *job, int *in_fd, int *out_fd) {
+    *in_fd = -1;
+    *out_fd = -1;
+
+    // Handle input redirection
+    if (job->infile_path) {
+        *in_fd = open(job->infile_path, O_RDONLY);
+        if (*in_fd < 0) {
+            write(2, "open(<) failed\n", 15);
+            return -1;
+        }
+    }
+
+    // Handle output redirection
+    if (job->outfile_path) {
+        *out_fd = open(job->outfile_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (*out_fd < 0) {
+            if (*in_fd >= 0) close(*in_fd);
+            write(2, "open(>) failed\n", 15);
+            return -1;
+        }
+    }
+
+    return 0;  // success
+}
+
 int parse_pipeline(struct Job *job) {
     struct Command *c0 = &job->pipeline[0];
     int bar = find_token(c0, "|");
@@ -131,6 +157,26 @@ void handle_background(struct Job *job) {
     cmd->argv[cmd->argc] = NULL;
 }
 
+int wait_for_foreground(pid_t p0, pid_t p1, int use_pipe) {
+    int status = 0;
+
+    /* Wait for stage 0 */
+    if (p0 > 0) {
+        if (waitpid(p0, &status, 0) < 0) {
+            write(2, "waitpid stage0 failed\n", 22);
+        }
+    }
+
+    /* Wait for stage 1 (if a pipe is used) */
+    if (use_pipe && p1 > 0) {
+        if (waitpid(p1, &status, 0) < 0) {
+            write(2, "waitpid stage1 failed\n", 22);
+        }
+    }
+
+    return status; // Return last child’s exit status
+}
+
 int get_job(struct Job *job) {
     initialize_job(job);
 
@@ -155,23 +201,8 @@ int run_job(struct Job *job) {
     int pipefd[2] = {-1, -1};
     int use_pipe = (job->num_stages == 2);
 
-    /* open input redirection for stage 0 if requested */
-    if (job->infile_path) {
-        in_fd = open(job->infile_path, O_RDONLY);
-        if (in_fd < 0) {
-            write(2, "open(<) failed\n", 15);
-            return -1;
-        }
-    }
-
-    /* open output redirection for LAST stage if requested */
-    if (job->outfile_path) {
-        out_fd = open(job->outfile_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (out_fd < 0) {
-            if (in_fd >= 0) close(in_fd);
-            write(2, "open(>) failed\n", 15);
-            return -1;
-        }
+    if (setup_redirection(job, &in_fd, &out_fd) < 0) {
+        return -1;
     }
 
     /* create pipe if we have two stages */
@@ -225,16 +256,7 @@ int run_job(struct Job *job) {
         return 0;
     }
 
-    /* Foreground: wait for the child(ren) */
-    int status = 0;
-    if (waitpid(p0, &status, 0) < 0) {
-        write(2, "waitpid stage0 failed\n", 22);
-    }
-    if (use_pipe) {
-        if (waitpid(p1, &status, 0) < 0) {
-            write(2, "waitpid stage1 failed\n", 22);
-        }
-    }
+    int status = wait_for_foreground(p0, p1, fds.use_pipe);
 
     return 0;
 }
