@@ -1,0 +1,22 @@
+total 116
+drwxrwxr-x 3 atipl367 atipl367  4096 Oct 15 15:34 .
+drwx------ 4 atipl367 atipl367  4096 Oct  2 00:56 ..
+drwxrwxr-x 8 atipl367 atipl367  4096 Oct 15 05:20 .git
+-rw-rw-r-- 1 atipl367 atipl367   438 Oct 14 20:16 Makefile
+-rw-rw-r-- 1 atipl367 atipl367    21 Oct  2 03:50 README.md
+-rw-rw-r-- 1 atipl367 atipl367  7049 Oct 15 15:31 jobs.c
+-rw-rw-r-- 1 atipl367 atipl367  1254 Oct 15 04:49 jobs.h
+-rw-rw-r-- 1 atipl367 atipl367  6784 Oct 15 15:33 jobs.o
+-rw-rw-r-- 1 atipl367 atipl367  6689 Oct 15 15:25 myfunctions.c
+-rw-rw-r-- 1 atipl367 atipl367  3735 Oct 14 23:27 myfunctions.h
+-rw-rw-r-- 1 atipl367 atipl367  7088 Oct 15 15:33 myfunctions.o
+-rw-rw-r-- 1 atipl367 atipl367   541 Oct 14 17:44 myheap.c
+-rw-rw-r-- 1 atipl367 atipl367   104 Oct  5 17:49 myheap.h
+-rw-rw-r-- 1 atipl367 atipl367  1960 Oct 14 19:02 myheap.o
+-rwxrwxr-x 1 atipl367 atipl367 21728 Oct 15 15:33 mysh
+-rw-rw-r-- 1 atipl367 atipl367   600 Oct 14 20:16 mysh.c
+-rw-rw-r-- 1 atipl367 atipl367  1664 Oct 15 15:33 mysh.o
+-rw-rw-r-- 1 atipl367 atipl367  1869 Oct 14 00:28 mystring.c
+-rw-rw-r-- 1 atipl367 atipl367   266 Oct 13 21:17 mystring.h
+-rw-rw-r-- 1 atipl367 atipl367  2208 Oct 14 02:37 mystring.o
+-rw-r--r-- 1 atipl367 atipl367     0 Oct 15 15:34 out.txt

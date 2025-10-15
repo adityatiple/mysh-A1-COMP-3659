@@ -78,7 +78,7 @@ int tokenize_word(int i, int input, char *buffer, struct Command *command) {
     while (i < input &&
            buffer[i] != ' ' && buffer[i] != '\t' &&
            buffer[i] != '&' && buffer[i] != '<' && buffer[i] != '>' &&
-           buffer[i] == '|' && buffer[i] != '\0') {
+           buffer[i] != '|' && buffer[i] != '\0') {
         i++;
     }
 

@@ -5,6 +5,7 @@
 #include "mystring.h"
 #include "myheap.h"
 #include "jobs.h"
+#include <fcntl.h>
 
 void initialize_command(struct Command *command) {
     command->argc = 0;
@@ -149,6 +150,96 @@ int get_job(struct Job *job) {
 }
 
 int run_job(struct Job *job) {
+    int in_fd  = -1;
+    int out_fd = -1;
+    int pipefd[2] = {-1, -1};
+    int use_pipe = (job->num_stages == 2);
+
+    /* open input redirection for stage 0 if requested */
+    if (job->infile_path) {
+        in_fd = open(job->infile_path, O_RDONLY);
+        if (in_fd < 0) {
+            write(2, "open(<) failed\n", 15);
+            return -1;
+        }
+    }
+
+    /* open output redirection for LAST stage if requested */
+    if (job->outfile_path) {
+        out_fd = open(job->outfile_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (out_fd < 0) {
+            if (in_fd >= 0) close(in_fd);
+            write(2, "open(>) failed\n", 15);
+            return -1;
+        }
+    }
+
+    /* create pipe if we have two stages */
+    if (use_pipe) {
+        if (pipe(pipefd) < 0) {
+            if (in_fd  >= 0) close(in_fd);
+            if (out_fd >= 0) close(out_fd);
+            write(2, "pipe failed\n", 12);
+            return -1;
+        }
+    }
+
+    /* Stage 0 stdio */
+    int s0_in  = (in_fd >= 0) ? in_fd : -1;
+    int s0_out = use_pipe
+                 ? pipefd[1]                   /* to stage 1 */
+                 : (job->outfile_path ? out_fd /* single-stage with > */
+                                      : -1);
+
+    pid_t p0 = run_command(&job->pipeline[0], s0_in, s0_out);
+
+    if (p0 <= 0) {
+        if (in_fd  >= 0) close(in_fd);
+        if (out_fd >= 0) close(out_fd);
+        if (use_pipe) { close(pipefd[0]); close(pipefd[1]); }
+        return -1;
+    }
+
+    /* Parent no longer needs stage 0's write end or input fd */
+    if (s0_in  >= 0) close(s0_in);
+    if (use_pipe && pipefd[1] >= 0) close(pipefd[1]);
+
+    pid_t p1 = 0;
+
+    if (use_pipe) {
+        /* Stage 1 stdio */
+        int s1_in  = pipefd[0];
+        int s1_out = job->outfile_path ? out_fd : -1;
+
+        p1 = run_command(&job->pipeline[1], s1_in, s1_out);
+
+        /* Parent no longer needs stage 1's read end */
+        if (s1_in >= 0) close(s1_in);
+    }
+
+    /* Parent no longer needs out_fd either */
+    if (out_fd >= 0) close(out_fd);
+
+    /* Background? don't wait */
+    if (job->background) {
+        return 0;
+    }
+
+    /* Foreground: wait for the child(ren) */
+    int status = 0;
+    if (waitpid(p0, &status, 0) < 0) {
+        write(2, "waitpid stage0 failed\n", 22);
+    }
+    if (use_pipe) {
+        if (waitpid(p1, &status, 0) < 0) {
+            write(2, "waitpid stage1 failed\n", 22);
+        }
+    }
+
+    return 0;
+}
+/*
+int run_job(struct Job *job) {
     if (job->num_stages != 1) {
         write(2, "unsupported pipeline length\n", 28);
         return -1;
@@ -178,4 +269,5 @@ int run_job(struct Job *job) {
 
     return 0;
 }
+*/
 
