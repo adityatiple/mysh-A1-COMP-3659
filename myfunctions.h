@@ -20,6 +20,8 @@ start_char: Function scans through the input buffer up to the number of bytes re
 @param buffer: Pointer to the character array containing user input.
 @param bytes_read: Number of characters read into the input_buffer.
 
+@return current index of the first character within the buffer.
+
 */
 int start_char(char *buffer, int bytes_read);
 

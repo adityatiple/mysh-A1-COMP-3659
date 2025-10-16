@@ -6,6 +6,7 @@
 #include "myheap.h"
 #include "jobs.h"
 #include <fcntl.h>
+#include <sys/stat.h>
 
 void initialize_command(struct Command *command) {
     command->argc = 0;
@@ -58,7 +59,7 @@ int setup_redirection(struct Job *job, int *in_fd, int *out_fd) {
 
     // Handle output redirection
     if (job->outfile_path) {
-        *out_fd = open(job->outfile_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        *out_fd = open(job->outfile_path, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
         if (*out_fd < 0) {
             if (*in_fd >= 0) close(*in_fd);
             write(2, "open(>) failed\n", 15);
@@ -185,8 +186,8 @@ int wait_for_foreground(pid_t p0, pid_t p1, int use_pipe) {
 int get_job(struct Job *job) {
     initialize_job(job);
 
-    int rc = get_command(&job->pipeline[0]);
-    if (rc == 1) return 1;                // "exit"
+    int status = get_command(&job->pipeline[0]);
+    if (status == 1) return 1;                // "exit"
     if (job->pipeline[0].argc == 0) return 0;  // blank or error
 
     if (parse_pipeline(job) < 0) return 0;
@@ -221,11 +222,18 @@ int run_job(struct Job *job) {
     }
 
     /* Stage 0 stdio */
-    int s0_in  = (in_fd >= 0) ? in_fd : -1;
-    int s0_out = use_pipe
-                 ? pipefd[1]                   /* to stage 1 */
-                 : (job->outfile_path ? out_fd /* single-stage with > */
-                                      : -1);
+    int s0_in  = -1;
+    int s0_out = -1;
+
+    if (in_fd >= 0) {
+        s0_in = in_fd;
+    }
+
+    if (use_pipe) {
+        s0_out = pipefd[1];          // write end to stage 1
+    } else if (job->outfile_path) {
+        s0_out = out_fd;             // single stage with '>'
+    }
 
     pid_t p0 = run_command(&job->pipeline[0], s0_in, s0_out);
 
@@ -243,9 +251,16 @@ int run_job(struct Job *job) {
     pid_t p1 = 0;
 
     if (use_pipe) {
-        /* Stage 1 stdio */
-        int s1_in  = pipefd[0];
-        int s1_out = job->outfile_path ? out_fd : -1;
+    int s1_in  = -1;
+    int s1_out = -1;
+
+    /* the read end of the pipe always feeds stage 1 */
+    s1_in = pipefd[0];
+
+    /* use output redirection if present */
+    if (job->outfile_path) {
+        s1_out = out_fd;
+    }
 
         p1 = run_command(&job->pipeline[1], s1_in, s1_out);
 
@@ -265,36 +280,4 @@ int run_job(struct Job *job) {
 
     return 0;
 }
-/*
-int run_job(struct Job *job) {
-    if (job->num_stages != 1) {
-        write(2, "unsupported pipeline length\n", 28);
-        return -1;
-    }
-
-    pid_t pid = run_command(&job->pipeline[0]);
-
-    if (pid == 0) {
-        // nothing to run
-        return 0;
-    } 
-    else if (pid < 0) {
-        // error from fork/exec
-        return -1;
-    }
-
-    if (job->background) {
-        // run in background, don't wait
-        return 0;
-    }
-
-    int status = 0;
-    if (waitpid(pid, &status, 0) < 0) {
-        write(2, "waitpid failed\n", 15);
-        return -1;
-    }
-
-    return 0;
-}
-*/
 

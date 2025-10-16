@@ -20,13 +20,6 @@ struct Job {
     int background;            // 0 = foreground, 1 = background
 };
 
-struct FDset{
-    int in_fd;
-    int out_fd;
-    int pipefd[2];
-    int use_pipe;
-} ;
-
 /* init helpers */
 void initialize_command(struct Command *command);
 void initialize_job(struct Job *job);

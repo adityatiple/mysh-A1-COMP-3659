@@ -8,7 +8,6 @@
 
 /******************************************************** HELPER FUNCTIONS ************************************************************/
 
-/* returns the index of the first non whitespace character - needed for tokenizing*/
 int start_char(char *buffer, int bytes_read) {
     for (int i = 0; i < bytes_read; i++) {
         if (buffer[i] != ' ' && buffer[i] != '\t' && buffer[i] != '\n') {
@@ -34,43 +33,43 @@ int char_limit(ssize_t input_size, int max_limit, char *buffer) {
     return 0;
 }
 
-int tokenize_command(int i, int input, char *buffer, struct Command *command) {
-    while (i < input && command->argc < MAX_ARGS) {
-        /* skip whitespace */
-        while (i < input && (buffer[i] == ' ' || buffer[i] == '\t'))
-            i++;
+int tokenize_command(int index, int bytes_read, char *buffer, struct Command *command) {
+    while (index < bytes_read && command->argc < MAX_ARGS) {
+        /* skip whitespace in between*/
+        while (index < bytes_read && (buffer[index] == ' ' || buffer[index] == '\t'))
+            index++;
 
-        if (i >= input || buffer[i] == '\0')
+        if (index >= bytes_read || buffer[index] == '\0')
             break;
 
         /* decide what to do */
-        if (buffer[i] == '&' || buffer[i] == '<' || buffer[i] == '>' || buffer[i] == '|') {
-            i = tokenize_operator(i, buffer, command);
-            if (i < 0) return -1;
+        if (buffer[index] == '&' || buffer[index] == '<' || buffer[index] == '>' || buffer[index] == '|') {
+            index = tokenize_operator(index, buffer, command);
+            if (index < 0) return -1;
             continue;
         } else {
-            i = tokenize_word(i, input, buffer, command);
-            if (i < 0) return -1;
+            index = tokenize_word(index, bytes_read, buffer, command);
+            if (index < 0) return -1;
         }
     }
     return 0;
 }
 
-int tokenize_operator(int i, char *buffer, struct Command *command) {
+int tokenize_operator(int index, char *buffer, struct Command *command) {
     if (command->argc >= MAX_ARGS) {
         write(2, "too many arguments\n", 19);
         return -1;
     }
 
-    char *tok = mystrdup(buffer + i, buffer + i + 1);
-    if (!tok) {
+    char *token = mystrdup(buffer + index, buffer + index + 1);
+    if (!token) {
         write(2, "alloc failed\n", 13);
         return -1;
     }
 
-    command->argv[command->argc++] = tok;
-    i++;   // move past this operator
-    return i;
+    command->argv[command->argc++] = token;
+    index++;   // move past this operator
+    return index;
 }
 
 int tokenize_word(int i, int input, char *buffer, struct Command *command) {
@@ -100,7 +99,6 @@ int tokenize_word(int i, int input, char *buffer, struct Command *command) {
 
     return i;
 }
-
 
 char *resolve_path(const char *command) {
     /* Check if command already contains a '/' → treat as full path */
@@ -161,14 +159,12 @@ void redirect_output(int out_fd) {
 //-------------------------------------------------------------------------------------------------------------------------------
 
 int get_command(struct Command *command) {    
-    char buffer[MAX_CH + 1];                                                // input command-line
-
-    initialize_command(command);                                            // intialize argc and argv for new cmd-line
+    char buffer[MAX_CH + 1];                                                // input command-line    
 
     write(1, "mysh $ ", 7);                                                 /* prompt */
     
     ssize_t bytes_read = read(0, buffer, MAX_CH + 1);                       /* bytes read from buffer */
-    if (bytes_read <= 0) return 0;                                          //for EOF and error
+    if (bytes_read <= 0) return 0;                                          // 0 = EOF, -1 = error
     buffer[bytes_read] = '\0';
 
     if (char_limit(bytes_read, MAX_CH, buffer)) {   
