@@ -14,8 +14,8 @@ struct Command
 struct Job {
     struct Command pipeline[MAX_PIPELINE_LEN];
     unsigned int num_stages;   // 1 for now
-    char *outfile_path;        // NULL if not specified
     char *infile_path;         // NULL if not specified
+    char *outfile_path;        // NULL if not specified    
     int background;            // 0 = foreground, 1 = background
 };
 
@@ -36,7 +36,7 @@ int wait_for_foreground(pid_t p0, pid_t p1, int use_pipe);
 
 
 
-static int find_token(struct Command *cmd, const char *tok);
+static int find_token(struct Command *command, const char *token);
 static void remove_tokens(struct Command *cmd, int pos, int count);
 
 int parse_pipeline(struct Job *job);
