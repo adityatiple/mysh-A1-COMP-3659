@@ -27,10 +27,10 @@ void initialize_job(struct Job *job) {
 
 }
 
-static int find_token(struct Command *cmd, const char *tok) {
-    for (int i = 0; i < cmd->argc; i++) {
-        if (cmd->argv[i] && mystrcmp(cmd->argv[i], tok) == 0) 
-        return i;
+static int find_token(struct Command *command, const char *token) {
+    for (int i = 0; i < command->argc; i++) {
+        if (mystrcmp(command->argv[i], token) == 0) 
+            return i;
     }
     return -1;
 }
@@ -48,17 +48,14 @@ int setup_redirection(struct Job *job, int *in_fd, int *out_fd) {
     *in_fd = -1;
     *out_fd = -1;
 
-    // Handle input redirection
-    if (job->infile_path) {
+    if (job->infile_path) {                         // Handle input redirection
         *in_fd = open(job->infile_path, O_RDONLY);
         if (*in_fd < 0) {
             write(2, "open(<) failed\n", 15);
             return -1;
         }
-    }
-
-    // Handle output redirection
-    if (job->outfile_path) {
+    }    
+    if (job->outfile_path) {                        // Handle output redirection
         *out_fd = open(job->outfile_path, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
         if (*out_fd < 0) {
             if (*in_fd >= 0) close(*in_fd);
@@ -66,41 +63,33 @@ int setup_redirection(struct Job *job, int *in_fd, int *out_fd) {
             return -1;
         }
     }
-
-    return 0;  // success
+    return 0;                                       // success
 }
 
 int parse_pipeline(struct Job *job) {
-    struct Command *c0 = &job->pipeline[0];
-    int bar = find_token(c0, "|");
-    if (bar < 0) {                      // no pipe
+    struct Command *command0 = &job->pipeline[0];
+    int bar = find_token(command0, "|");
+    if (bar < 0) {                                                          // no pipe
         job->num_stages = 1;
         return 0;
     }
-    if (bar == 0 || bar == (int)c0->argc - 1) {
+    if (bar == 0 || bar == command0->argc - 1) {                       //first or last token is bar 
         write(2, "syntax error near '|'\n", 22);
         return -1;
     }
+    
+    initialize_command(&job->pipeline[1]);                                  // initialize the later part of the pipe (after |)
+    struct Command *command1 = &job->pipeline[1];    
+    for (int i = bar + 1; i < command0->argc; i++) {                   // move tokens after '|' into stage-1 
+        command1->argv[command1->argc++] = command0->argv[i];
+        command0->argv[i] = NULL;
+    }    
+    command0->argv[bar] = NULL;                                             // terminate stage-0 at '|'
+    command0->argc = bar;
 
-    // init stage-1
-    initialize_command(&job->pipeline[1]);
-
-    struct Command *c1 = &job->pipeline[1];
-    // move tokens after '|' into stage-1 (pointer move; same arena)
-    for (int i = bar + 1; i < (int)c0->argc; i++) {
-        c1->argv[c1->argc++] = c0->argv[i];
-        c0->argv[i] = NULL;
-    }
-
-    // terminate stage-0 at '|'
-    c0->argv[bar] = NULL;
-    c0->argc = bar;
-
-    job->num_stages = 2;
-
-    // guard: reject more than one pipe
-    if (find_token(c1, "|") >= 0 || find_token(c0, "|") >= 0) {
-        write(2, "pipeline length > 2 not supported\n", 34);
+    job->num_stages = 2;    
+    if (find_token(command1, "|") >= 0 || find_token(command0, "|") >= 0) { // error more than one pipe
+        write(2, "only one '|' operator supported\n", 32);
         return -1;
     }
     return 0;
