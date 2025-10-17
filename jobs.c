@@ -147,11 +147,11 @@ void handle_background(struct Job *job) {
 
     struct Command *command = &job->pipeline[last];
     if (mystrcmp(command->argv[command->argc - 1], "&") == 0) {
-        command->argv[command->argc - 1] = NULL;
+        command->argv[command->argc - 1] = NULL;        // Remove "&" from array and set to NULL
         command->argc--;
-        job->background = 1;
+        job->background = 1;                            // set background to 1
     }
-    command->argv[command->argc] = NULL;
+    command->argv[command->argc] = NULL;                // saftery gaurd ensuring array always ends with NULL
 }
 
 int wait_for_foreground(pid_t p0, pid_t p1, int use_pipe) {
@@ -177,7 +177,7 @@ int get_job(struct Job *job) {
     if (job->pipeline[0].argc == 0) return 0;         // blank or error
 
     if (parse_pipeline(job) < 0) return 0;
-        
+
     if (parse_input_redirection(job)  < 0) return 0;  // strips "< file" and sets infile_path
     if (parse_output_redirection(job) < 0) return 0;  // strips "> file" and sets outfile_path
 
@@ -188,23 +188,19 @@ int get_job(struct Job *job) {
 int run_job(struct Job *job) {
     int in_fd  = -1;
     int out_fd = -1;
-    int pipefd[2] = {-1, -1};
+    int pipefd[2];
     int use_pipe = (job->num_stages == 2);
 
     if (setup_redirection(job, &in_fd, &out_fd) < 0) {
         return -1;
-    }
-
-    /* create pipe if we have two stages */
-    if (use_pipe) {
-        if (pipe(pipefd) < 0) {
-            if (in_fd  >= 0) close(in_fd);
-            if (out_fd >= 0) close(out_fd);
+    }     
+    if (use_pipe) {                         // create pipe if we have two stages
+        if (pipe(pipefd) < 0) {             // pipe failed then close any open files
+            close_fd(&in_fd, &out_fd);
             write(2, "pipe failed\n", 12);
             return -1;
         }
     }
-
     /* Stage 0 stdio */
     int s0_in  = -1;
     int s0_out = -1;
@@ -212,7 +208,6 @@ int run_job(struct Job *job) {
     if (in_fd >= 0) {
         s0_in = in_fd;
     }
-
     if (use_pipe) {
         s0_out = pipefd[1];          // write end to stage 1
     } else if (job->outfile_path) {
@@ -222,46 +217,35 @@ int run_job(struct Job *job) {
     pid_t p0 = run_command(&job->pipeline[0], s0_in, s0_out);
 
     if (p0 <= 0) {
-        if (in_fd  >= 0) close(in_fd);
-        if (out_fd >= 0) close(out_fd);
+        close_fd(&in_fd, &out_fd);
         if (use_pipe) { close(pipefd[0]); close(pipefd[1]); }
         return -1;
     }
-
-    /* Parent no longer needs stage 0's write end or input fd */
-    if (s0_in  >= 0) close(s0_in);
+   
+    if (s0_in  >= 0) close(s0_in);           /* Parent no longer needs stage 0's write end or input fd */
     if (use_pipe && pipefd[1] >= 0) close(pipefd[1]);
 
     pid_t p1 = 0;
 
     if (use_pipe) {
-    int s1_in  = -1;
-    int s1_out = -1;
+        int s1_in  = -1;
+        int s1_out = -1;        
+        s1_in = pipefd[0];                  /* the read end of the pipe always feeds stage 1 */
+        if (job->outfile_path)              /* use output redirection if present */
+            s1_out = out_fd;    
 
-    /* the read end of the pipe always feeds stage 1 */
-    s1_in = pipefd[0];
+        p1 = run_command(&job->pipeline[1], s1_in, s1_out);        
+        if (s1_in >= 0) close(s1_in);       /* Parent no longer needs stage 1's read end */
+    }    
+    if (out_fd >= 0)                        /* Parent no longer needs out_fd either */ 
+        close(out_fd);
 
-    /* use output redirection if present */
-    if (job->outfile_path) {
-        s1_out = out_fd;
-    }
-
-        p1 = run_command(&job->pipeline[1], s1_in, s1_out);
-
-        /* Parent no longer needs stage 1's read end */
-        if (s1_in >= 0) close(s1_in);
-    }
-
-    /* Parent no longer needs out_fd either */
-    if (out_fd >= 0) close(out_fd);
-
-    /* Background? don't wait */
-    if (job->background) {
-        return 0;
-    }
-
-    int status = wait_for_foreground(p0, p1,use_pipe);
-
+    if (job->background) return 0;          /* Background? don't wait */
+    int status = wait_for_foreground(p0, p1, use_pipe);
     return 0;
 }
 
+void close_fd(int *in_fd, int *out_fd) {
+    if (*in_fd  >= 0) close(*in_fd);
+    if (*out_fd >= 0) close(*out_fd);
+}

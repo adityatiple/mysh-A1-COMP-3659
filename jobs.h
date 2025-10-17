@@ -1,5 +1,6 @@
 #ifndef JOBS_H
 #define JOBS_H
+#include <sys/types.h>
 
 #define MAX_ARGS 16     /* TO DO */
 #define MAX_CH 256     /* TO DO */
@@ -40,6 +41,8 @@ static int find_token(struct Command *command, const char *token);
 static void remove_tokens(struct Command *cmd, int pos, int count);
 
 int parse_pipeline(struct Job *job);
+
+void close_fd(int *in_fd, int *out_fd);
 
 
 
