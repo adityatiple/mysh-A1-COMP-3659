@@ -177,7 +177,7 @@ int get_command(struct Command *command) {
     return 0;
 }
 
-pid_t run_command(struct Command *command, int in_fd, int out_fd) {
+pid_t run_command(struct Command *command, struct FD *fd_set) {
     if (!command || command->argc == 0 || !command->argv[0])
         return 0;
 
@@ -187,8 +187,8 @@ pid_t run_command(struct Command *command, int in_fd, int out_fd) {
         return -1;
     }
     if (pid == 0) {        
-        redirect_input(in_fd);
-        redirect_output(out_fd);
+        redirect_input(fd_set->in_fd);
+        redirect_output(fd_set->out_fd);
 
         char *path = resolve_path(command->argv[0]);
         if (!path) {
