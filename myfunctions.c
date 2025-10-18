@@ -110,37 +110,23 @@ char *resolve_path(const char *command) {
 }
 
 void redirect_input(int in_fd) {
-    if (in_fd < 0)
-        return; // nothing to redirect
-
-    int alias_fd = dup(in_fd);
-    if (alias_fd == -1) {
-        write(2, "dup(in) failed\n", 15);
-        _exit(1);
+    if (in_fd >= 0) {
+        if (dup2(in_fd, 0) < 0) {               //stdin = 0
+            write(2, "dup2(in) failed\n", 16);
+            _exit(1);
+        }
+        close(in_fd);
     }
-    if (dup2(alias_fd, 0) == -1) {
-        write(2, "dup2(in) failed\n", 16);
-        _exit(1);
-    }
-    close(in_fd);
-    close(alias_fd);
 }
 
 void redirect_output(int out_fd) {
-    if (out_fd < 0)
-        return; // nothing to redirect
-
-    int alias_fd = dup(out_fd);
-    if (alias_fd == -1) {
-        write(2, "dup(out) failed\n", 16);
-        _exit(1);
+    if (out_fd >= 0) {
+        if (dup2(out_fd, 1) < 0) {              //stdout = 1
+            write(2, "dup2(out) failed\n", 17);
+            _exit(1);
+        }
+        close(out_fd);
     }
-    if (dup2(alias_fd, 1) == -1) {
-        write(2, "dup2(out) failed\n", 17);
-        _exit(1);
-    }
-    close(out_fd);
-    close(alias_fd);
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------

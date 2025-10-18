@@ -29,7 +29,8 @@ void initialize_job(struct Job *job) {
 void initialize_fd(struct Job *job, struct FD *fd_set) {
     fd_set->in_fd  = -1;
     fd_set->out_fd = -1;
-    fd_set->pipefd[2] = (-1,-1);
+    fd_set->pipefd[0] = -1;
+    fd_set->pipefd[1] = -1;
         
     if (job->num_stages == 2) 
         fd_set->pipe_exists = 1;
@@ -165,9 +166,9 @@ pid_t launch_stage0(struct Job *job, struct FD *fd_set) {
         fd_set->stage0_out = fd_set->out_fd;           // single stage with '>'
     }
 
-    pid_t p0 = run_command(&job->pipeline[0], fd_set); // <— not &fd_set
+    pid_t p0 = run_command(&job->pipeline[0], fd_set); 
     if (p0 <= 0) {
-        close_fd(fd_set);                               // <— not &fd_set
+        close_fd(fd_set);                               
         if (fd_set->pipe_exists) {
             if (fd_set->pipefd[0] >= 0) close(fd_set->pipefd[0]);
             if (fd_set->pipefd[1] >= 0) close(fd_set->pipefd[1]);
@@ -189,7 +190,7 @@ pid_t launch_stage1(struct Job *job, struct FD *fd_set) {
         fd_set->stage1_out = fd_set->out_fd;            // '>' on stage 1 if present
     }
 
-    pid_t p1 = run_command(&job->pipeline[1], fd_set);  // <— not &fd_set
+    pid_t p1 = run_command(&job->pipeline[1], fd_set);  
 
     if (fd_set->stage1_in >= 0) 
         close(fd_set->stage1_in);
