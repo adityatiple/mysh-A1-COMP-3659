@@ -24,7 +24,6 @@ void initialize_job(struct Job *job) {
     for (int i = 0; i < MAX_PIPELINE_LEN; i++) {
         initialize_command(&job->pipeline[i]);
     }
-
 }
 
 static int find_token(struct Command *command, const char *token) { // use when token location is unknown in the pipeline
