@@ -43,7 +43,7 @@ tokenize_command: Function splits user inputs into tokens (words / operators) to
  @param index: The current index of the first char which is non-whitespace.
  @param bytes_read: The total number of bytes read into the buffer.
  @param buffer: The character array containing the user's command input.
- @param command: Pointer to the Command structure where tokens are stored.
+ @param command: Pointer to the Command structure where tokens are stored and counted.
  
  @return 0 on successful tokenization,
           -1 if memory allocation for any token fails or MAX_ARGS exceeded.
@@ -63,7 +63,7 @@ tokenize_operator: Function handles special shell operators such as '&', '<', '>
 
  @param index: The current index of the first char which is non-whitespace.
  @param buffer: The character array containing the user's command input.
- @param command: Pointer to the Command structure where tokens are stored.
+ @param command: Pointer to the Command structure where the total count and the actual token values are stored.
 
  @return The updated index position after processing the operator,
          -1 if memory allocation fails or the argument limit (MAX_ARGS) is reached.
@@ -84,18 +84,109 @@ tokenize_word: Function handles the extraction of normal words (commands or argu
  @param index: The current index of the first char which is non-whitespace.
  @param bytes_read: The total number of characters read into the buffer.
  @param buffer: The character array containing the user's command input.
- @param command: Pointer to the Command structure where parsed tokens are stored.
+ @param command: Pointer to the Command structure where tokens are stored and counted.
 
  @return The updated index position after processing the current word,
          -1 if memory allocation fails or the argument limit (MAX_ARGS) is exceeded.
 */
 int tokenize_word(int i, int input, char *buffer, struct Command *command);
 
-char *resolve_path(const char *cmd);
+/*
+resolve_path: Function Resolves the full path of a command to ensure it can be executed by execve(), which requires an absolute or relative pathname.
+              the command already includes a '/' (indicating it’s already a path), the function returns it unchanged.
+              Otherwise, it automatically prepends the directory "/usr/bin/" to the command name to form a complete path.
+
+@param command: Pointer to the Command structure where tokens are stored and counted.
+
+@return The resolved path string:
+         - Returns the same argv[0] pointer if it already contains '/'.
+         - Returns a newly allocated string containing "/usr/bin/" + argv[0].
+         - Returns NULL if memory allocation fails.
+
+*/
+char *resolve_path(const char *command);
+
+/*
+redirect_input: Function redirects the standard input (stdin) of the current process
+                to the file descriptor provided by in_fd. This allows commands that
+                use input redirection ("<") to read from a file instead of the terminal.
+
+                If the given file descriptor is valid (>= 0), dup2() replaces stdin (fd 0)
+                with in_fd. After duplication, the original descriptor is closed since
+                it is no longer needed.
+
+                On failure, an error message is printed to stderr and the process
+                terminates immediately using _exit(1).
+
+ @param in_fd: The file descriptor of the input file to be redirected to stdin.
+               If negative, no redirection occurs.
+
+ @return None (void function). Process exits on failure.
+*/
 void redirect_input(int in_fd);
+
+/*
+redirect_output: Function redirects the standard output (stdout) of the current process
+                 to the file descriptor provided by out_fd. This enables output
+                 redirection (">") so that a command writes its results to a file
+                 instead of the terminal.
+
+                 If the given file descriptor is valid (>= 0), dup2() replaces stdout
+                 (fd 1) with out_fd. After duplication, the original descriptor is
+                 closed since it is no longer needed.
+
+                 On failure, an error message is printed to stderr and the process
+                 terminates immediately using _exit(1).
+
+ @param out_fd: The file descriptor of the output file to be redirected to stdout.
+                If negative, no redirection occurs.
+
+ @return None (void function). Process exits on failure.
+*/
 void redirect_output(int out_fd);
 
+/*
+get_command: Function reads a full command line from standard input, tokenizes it,
+              and populates the provided Command structure with arguments and operators.
+              It also handles shell-specific features like whitespace skipping, detecting
+              the "exit" command, and checking if the given input is within the assigned limit.
+
+              The user is first shown the prompt "mysh $ ". Input is read using read(),
+              stored into a temporary buffer, and cleaned of any trailing newline.
+              The command is then tokenized using tokenize_command(), which breaks it
+              into separate words and operators.
+
+              If the command is blank or exceeds the maximum input length, the function
+              returns 0 and the shell re-prompts the user.
+
+ @param command: Pointer to the Command structure where tokens are stored and counted.
+
+ @return 
+         1 → If the user entered "exit" (shell should terminate).
+         0 → For blank lines, invalid input, or tokenization errors (reprompt user).
+*/
 int get_command(struct Command *command);
+
+/*
+run_command: Function executes a single Command structure in a child process.
+              It forks the current process, sets up input/output redirections
+              using the provided FD structure, and finally calls execve() to
+              execute the resolved command.
+
+              The parent process receives the child's PID and continues execution,
+              while the child process replaces its image with the target program.
+
+              This function is the core of process creation for both single and
+              pipelined jobs, handling the execution stage for each command in
+              the Job’s pipeline.
+
+ @param command: Pointer to the Command structure where tokens are stored and counted.
+ @param fd_set:  Pointer to the FD structure where file descriptors for I/O are stored.
+
+ @return The PID of the newly created child process if fork succeeds.
+         -1 if fork fails.
+         0  if command or argv[0] is empty (no execution).
+*/
 pid_t run_command(struct Command *command, struct FD *fd_set);
 
 #endif
