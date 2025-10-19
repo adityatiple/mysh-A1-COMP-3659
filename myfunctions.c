@@ -71,7 +71,7 @@ int tokenize_operator(int index, char *buffer, struct Command *command) {
 
 int tokenize_word(int index, int bytes_read, char *buffer, struct Command *command) {
     int start = index;    
-    while (index < bytes_read &&                                    /*finding the end of the word (boundary)*/
+    while (index < bytes_read &&                                    // finding the end of the word (boundary)
            buffer[index] != ' ' && buffer[index] != '\t' &&
            buffer[index] != '&' && buffer[index] != '<' && buffer[index] != '>' &&
            buffer[index] != '|' && buffer[index] != '\0') {
@@ -144,11 +144,11 @@ int get_command(struct Command *command) {
         write(1, "Error: Input exceeds maximum character limit.\n", 46);    /* too long */
         return 0;                                                           /*repromt*/
     }        
-    int index = start_char(buffer, (int)bytes_read);                        /* first non-whitespace index */
-    if (index >= bytes_read)                                                // i - index of first non white-space
-        return 0;   
+    int index = start_char(buffer, (int)bytes_read);                        
+    if (index >= bytes_read)                                                // index: index of first non white-space
+        return 0;                                                           // input all whitespace
 
-    if (bytes_read > 0 && buffer[bytes_read - 1] == '\n') {                 /* strip trailing newline */
+    if (bytes_read > 0 && buffer[bytes_read - 1] == '\n') {                 // strip trailing newline 
         buffer[bytes_read - 1] = '\0';
         bytes_read--;
     }

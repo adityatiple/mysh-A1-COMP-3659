@@ -8,6 +8,8 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
+/****************************************************** HELPER FUNCTIONS ************************************************************/
+
 void initialize_command(struct Command *command) {
     command->argc = 0;
     for (int i = 0; i < MAX_ARGS + 1; i++) {
@@ -52,14 +54,14 @@ static int find_token(struct Command *command, const char *token) { // use when 
 static void remove_tokens(struct Command *command, int start, int count) {
     if (start < 0 || start >= command->argc) return;                // index out of bounds
     
-    for (int i = start; i + count < command->argc; i++) {           // Shift left: move pointer 
-        command->argv[i] = command->argv[i + count];
+    for (int i = start; i + count < command->argc; i++) {           
+        command->argv[i] = command->argv[i + count];                // replaces current tokens with later ones(later ones stay the same)
     }
     
-    for (int i = command->argc - count; i < command->argc; i++) {   // Null out the tail
-        command->argv[i] = NULL;
+    for (int i = command->argc - count; i < command->argc; i++) {   // Null out the later tokens to avoid duplication
+        command->argv[i] = NULL;                                    
     }
-    command->argc = command->argc - count;                          // New args count
+    command->argc = command->argc - count;                          // New args count without start and start + 1 tokens
     }
 
 int setup_redirection(struct Job *job, struct FD *fd_set) {
@@ -95,7 +97,7 @@ int parse_pipeline(struct Job *job) {
         write(2, "syntax error near '|'\n", 22);
         return -1;
     }
-    
+
     initialize_command(&job->pipeline[1]);                                    // initialize the later part of the pipe (after |)
     struct Command *command1 = &job->pipeline[1];    
     for (int i = bar_index + 1; i < command0->argc; i++) {                    // move tokens after '|' into stage-1 
@@ -114,8 +116,8 @@ int parse_pipeline(struct Job *job) {
 }
 
 int parse_input_redirection(struct Job *job) {
-    struct Command *command = &job->pipeline[0];
-    int index = find_token(command, "<");
+    struct Command *command = &job->pipeline[0];        // get tokens before pipe
+    int index = find_token(command, "<");               
     if (index < 0) return 0;
 
     if (index == command->argc - 1) {
@@ -126,17 +128,17 @@ int parse_input_redirection(struct Job *job) {
         write(2, "multiple input redirections\n", 28);
         return -1;
     }
-    job->infile_path = command->argv[index + 1];
-    remove_tokens(command, index, 2);
+    job->infile_path = command->argv[index + 1];         // set infile to token after '<'
+    remove_tokens(command, index, 2);                    // remove '<' and filename not needed anymore
     return 0;
 }
 
 int parse_output_redirection(struct Job *job) {
     int last = 0;
-    if (job->num_stages == 2) 
+    if (job->num_stages == 2)                           // check if pipe exists
         last = 1;    
 
-    struct Command *command = &job->pipeline[last];
+    struct Command *command = &job->pipeline[last];     // get tokens after pipe
     int index = find_token(command, ">");
     if (index < 0) return 0;
 
@@ -148,8 +150,8 @@ int parse_output_redirection(struct Job *job) {
         write(2, "multiple output redirections\n", 29);
         return -1;
     }
-    job->outfile_path = command->argv[index + 1];
-    remove_tokens(command, index, 2);
+    job->outfile_path = command->argv[index + 1];       // set outfile to token after '>'
+    remove_tokens(command, index, 2);                   // remove '>' and filename not needed anymore
     return 0;
 }
 
@@ -235,6 +237,8 @@ int wait_for_foreground(pid_t p0, pid_t p1, int pipe_exists) {
     return status;                                      /* Return last child’s exit status */ 
 }
 
+//------------------------------------------------------------------------------------------------------------------------------------
+
 int get_job(struct Job *job) {
     initialize_job(job);
 
@@ -257,7 +261,7 @@ int run_job(struct Job *job) {
     if (setup_redirection(job, &fd_set) < 0) {
         return -1;
     }     
-    if (fd_set.pipe_exists) {                         // create pipe if we have two stages
+    if (fd_set.pipe_exists) {                      // create pipe if we have two stages
         if (pipe(fd_set.pipefd) < 0) {             // pipe failed then close any open files
             close_fd(&fd_set);
             write(2, "pipe failed\n", 12);
@@ -273,7 +277,7 @@ int run_job(struct Job *job) {
     if (fd_set.pipe_exists)
         p1 = launch_stage1(job, &fd_set);
 
-    if (job->background) return 0;          /* Background? don't wait */
+    if (job->background) return 0;                  // Background? don't wait 
     int status = wait_for_foreground(p0, p1, fd_set.pipe_exists);
     return 0;
 }

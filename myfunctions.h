@@ -4,12 +4,14 @@
 #include <unistd.h>
 #include "jobs.h"
 
+/********************************************************* HELPER FUNCTIONS **********************************************************/
+
 /*
 start_char: Function scans through the input buffer up to the number of bytes read, 
             to find the first non white-space and return its index. 
             Primarily used for command parsing so no white-spaces are included when tokenizing input.
 
-@param buffer: Pointer to the character array containing user input.
+@param buffer:     Pointer to the character array containing user input.
 @param bytes_read: Number of characters read into the input_buffer.
 
 @return current index of the first character within the buffer.
@@ -22,8 +24,8 @@ char_limit: Function checks wheter the user's input is within the max character 
             so the buffer remains cleared for the next incoming reads.
 
  @param input_size: The number of bytes read from the user input.
- @param max_limit: The maximum number of characters allowed for a command line.
- @param buffer: Pointer to the input buffer containing the user's command.
+ @param max_limit:  The maximum number of characters allowed for a command line.
+ @param buffer:     Pointer to the input buffer containing the user's command.
  
  @return 1 if the input exceeds the maximum limit (too long), 0 otherwise.
 */
@@ -40,10 +42,10 @@ tokenize_command: Function splits user inputs into tokens (words / operators) to
                   Tokenization stops once the buffer ends, a null terminator is found,
                   or the maximum argument limit (MAX_ARGS) is reached.
 
- @param index: The current index of the first char which is non-whitespace.
+ @param index:      The current index of the first char which is non-whitespace.
  @param bytes_read: The total number of bytes read into the buffer.
- @param buffer: The character array containing the user's command input.
- @param command: Pointer to the Command structure where tokens are stored and counted.
+ @param buffer:     The character array containing the user's command input.
+ @param command:    Pointer to the Command structure where tokens are stored and counted.
  
  @return 0 on successful tokenization,
           -1 if memory allocation for any token fails or MAX_ARGS exceeded.
@@ -61,8 +63,8 @@ tokenize_operator: Function handles special shell operators such as '&', '<', '>
                    The argument count (argc) is then incremented, and the parsing index is
                    advanced by one position to continue reading the next character.
 
- @param index: The current index of the first char which is non-whitespace.
- @param buffer: The character array containing the user's command input.
+ @param index:   The current index of the first char which is non-whitespace.
+ @param buffer:  The character array containing the user's command input.
  @param command: Pointer to the Command structure where the total count and the actual token values are stored.
 
  @return The updated index position after processing the operator,
@@ -81,10 +83,10 @@ tokenize_word: Function handles the extraction of normal words (commands or argu
                when it encounters a space, tab, operator symbol ('&', '<', '>', '|'),
                or the end of the input buffer.
 
- @param index: The current index of the first char which is non-whitespace.
+ @param index:      The current index of the first char which is non-whitespace.
  @param bytes_read: The total number of characters read into the buffer.
- @param buffer: The character array containing the user's command input.
- @param command: Pointer to the Command structure where tokens are stored and counted.
+ @param buffer:     The character array containing the user's command input.
+ @param command:    Pointer to the Command structure where tokens are stored and counted.
 
  @return The updated index position after processing the current word,
          -1 if memory allocation fails or the argument limit (MAX_ARGS) is exceeded.
@@ -144,6 +146,8 @@ redirect_output: Function redirects the standard output (stdout) of the current 
  @return None (void function). Process exits on failure.
 */
 void redirect_output(int out_fd);
+
+//--------------------------------------------------------------------------------------------------------------------------
 
 /*
 get_command: Function reads a full command line from standard input, tokenizes it,
