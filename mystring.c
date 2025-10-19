@@ -1,17 +1,8 @@
 #include "mystring.h"
 #include "myheap.h"
-#include <string.h>       /* TO DO: initial cheat! Remove this line and all library dependency evetually */
-#include <unistd.h>      /* for read() and write() */
-
-/*
-Your shell will require a small string library for performing a modest set of basic string operations,
-such as comparing strings for equality, copying strings, etc. Identify and develop these as needed.
-*/
+#include <unistd.h>      
 
 
-/**
-Function returns the length of a string.
-**/
 int mystrlen(const char *s)
 {
   int len = 0;
@@ -21,21 +12,15 @@ int mystrlen(const char *s)
     return len;  
 }
 
-/**
-Function compares two strings for equality. 
-**/
-int mystrcmp(const char *s1, const char *s2)
+int mystrcmp(const char *str1, const char *str2)
 {
-  while (*s1 == *s2 && *s1 != '\0' && *s2 != '\0') { // while characters are equal and not null terminator
-    s1++;
-    s2++;
+  while (*str1 == *str2 && *str1 != '\0' && *str2 != '\0') { // while characters are equal and not null terminator
+    str1++;
+    str2++;
   }   
-   return (char)*s1 - (char)*s2;
+   return (char)*str1 - (char)*str2; // if 0 returned both are equal, else not.
 }
 
-/**
-Function copies a string from a source to a destination.
-**/
 char *mystrcpy(char *dest, const char *src)
 {
    char *d = dest;        // keep pointer to start of dest
@@ -48,19 +33,17 @@ char *mystrcpy(char *dest, const char *src)
     return dest;           // return original dest pointer
 }
 
-
-// duplicates bytes in [begin, end) into arena and NUL-terminates
 char *mystrdup(const char *begin, const char *end) {
-    int k = (int)(end - begin);
-    char *new_str = alloc(k + 1);
+    int len = (int)(end - begin);
+    char *new_str = alloc(len + 1);
 
     if (!new_str) {
       return NULL;
     }
-    for (int i = 0; i < k; i++) {
+    for (int i = 0; i < len; i++) {
       new_str[i] = begin[i];      
     }
-    new_str[k] = '\0';    
+    new_str[len] = '\0';    
     return new_str;
 }
 
