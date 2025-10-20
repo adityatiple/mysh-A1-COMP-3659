@@ -34,20 +34,20 @@ int char_limit(ssize_t input_size, int max_limit, char *buffer) {
 
 int tokenize_command(int index, int bytes_read, char *buffer, struct Command *command) {
     while (index < bytes_read && command->argc < MAX_ARGS) {
-        /* skip whitespace in between*/
+        // skip whitespace in between
         while (index < bytes_read && (buffer[index] == ' ' || buffer[index] == '\t'))
             index++;
 
         if (index >= bytes_read || buffer[index] == '\0')
             break;
 
-        /* decide what to do */
+        // decide what to do 
         if (buffer[index] == '&' || buffer[index] == '<' || buffer[index] == '>' || buffer[index] == '|') {
-            index = tokenize_operator(index, buffer, command);
+            index = tokenize_operator(index, buffer, command);          // Single-char operator becomes its own token
             if (index < 0) return -1;
             continue;
         } else {
-            index = tokenize_word(index, bytes_read, buffer, command);
+            index = tokenize_word(index, bytes_read, buffer, command); // anything else tokenized
             if (index < 0) return -1;
         }
     }
@@ -56,76 +56,76 @@ int tokenize_command(int index, int bytes_read, char *buffer, struct Command *co
 
 int tokenize_operator(int index, char *buffer, struct Command *command) {
     if (command->argc >= MAX_ARGS) {
-        write(2, "too many arguments\n", 19);
+        write(2, "too many arguments\n", 19);                       // gaurd clause
         return -1;
     }
-    char *token = mystrdup(buffer + index, buffer + index + 1);
+    char *token = mystrdup(buffer + index, buffer + index + 1);     // store token in local allocated memory 
     if (!token) {
         write(2, "alloc failed\n", 13);
         return -1;
     }
-    command->argv[command->argc++] = token;
-    index++;   // move past this operator
-    return index;
+    command->argv[command->argc++] = token;                         // add token to the argv array
+    index++;                                                        
+    return index;                                                   // return the next index after this token 
 }
 
 int tokenize_word(int index, int bytes_read, char *buffer, struct Command *command) {
     int start = index;    
-    while (index < bytes_read &&                                    // finding the end of the word (boundary)
+    while (index < bytes_read &&                                        // finding the end of the word (boundary)
            buffer[index] != ' ' && buffer[index] != '\t' &&
            buffer[index] != '&' && buffer[index] != '<' && buffer[index] != '>' &&
            buffer[index] != '|' && buffer[index] != '\0') {
         index++;
     }
-    int len = index - start;
+    int len = index - start;                                            // finding length of the word
     if (len > 0) {
         if (command->argc >= MAX_ARGS) {
             write(2, "too many arguments\n", 19);
             return -1;
         }
-        char *token = mystrdup(buffer + start, buffer + start + len);
+        char *token = mystrdup(buffer + start, buffer + start + len);   // store word-token in local allocated memory 
         if (!token) {
             write(2, "alloc failed\n", 13);
             return -1;
         }
-        command->argv[command->argc++] = token;
+        command->argv[command->argc++] = token;                         // add token to the argv array
     }
-    return index;
+    return index;                                                       
 }
 
 char *resolve_path(const char *command) {    
     for (const char *p = command; *p != '\0'; p++) {
-        if (*p == '/') {                                // Check if command already contains a '/' → treat as full path
-            return (char *)command;                     // already absolute/relative
+        if (*p == '/') {                                    // Check if command already contains a '/' → treat as full path
+            return (char *)command;                         // already absolute/relative
         }
     }
     const char *prefix = "/usr/bin/";
-    int total = mystrlen(prefix) + mystrlen(command) + 1;
+    int total = mystrlen(prefix) + mystrlen(command) + 1;   
 
-    char *path = alloc(total);
+    char *path = alloc(total);                              // allocate total memory required for the whole path                
     if (!path) return NULL;
     mystrcpy(path, prefix);
-    mystrcat(path, command);
-    return path;
+    mystrcat(path, command);                                // create whole path. 
+    return path;                                            // if command was "ls" return -> "/usr/bin/ls\0"
 }
 
 void redirect_input(int in_fd) {
     if (in_fd >= 0) {
-        if (dup2(in_fd, 0) < 0) {               //stdin = 0
+        if (dup2(in_fd, 0) < 0) {               // make 0(stdin) point to what in_fd was pointing to
             write(2, "dup2(in) failed\n", 16);
-            _exit(1);
+            _exit(1);                           // if failed terminate child process.
         }
-        close(in_fd);
+        close(in_fd);                           // in_fd no longer needed.
     }
 }
 
 void redirect_output(int out_fd) {
     if (out_fd >= 0) {
-        if (dup2(out_fd, 1) < 0) {              //stdout = 1
+        if (dup2(out_fd, 1) < 0) {              // make 1(stdout) point to what out_fd was pointing to
             write(2, "dup2(out) failed\n", 17);
-            _exit(1);
+            _exit(1);                           // if failed terminate child process. 
         }
-        close(out_fd);
+        close(out_fd);                          // out-fd no longer needed.
     }
 }
 
@@ -157,7 +157,7 @@ int get_command(struct Command *command) {
         bytes_read--;
     }
     if (mystrcmp(buffer + index, "exit") == 0) {
-        write(1, "Exiting shell...\n", 17);                                 /* exit */
+        write(1, "Exiting shell...\n", 17);                                 // exit 
         return 1;
     }
     if (tokenize_command(index, (int)bytes_read, buffer, command) == -1)
@@ -169,27 +169,27 @@ int get_command(struct Command *command) {
 
 pid_t run_command(struct Command *command, struct FD *fd_set) {
     if (!command || command->argc == 0 || !command->argv[0])
-        return 0;
+        return 0;                                       // gaurd-clause
 
-    pid_t pid = fork();
+    pid_t pid = fork();                                 // Create a new child process by duplicating the parent
     if (pid < 0) {
         write(2, "fork failed\n", 12);
         return -1;
     }
-    if (pid == 0) {        
-        redirect_input(fd_set->in_fd);
-        redirect_output(fd_set->out_fd);
+    if (pid == 0) {                                     // fork successful 
+        redirect_input(fd_set->in_fd);                  //dup to make stdin read from terminal/pipe/file
+        redirect_output(fd_set->out_fd);                //dup to make stdout write to terminal/pipe/file
 
-        char *path = resolve_path(command->argv[0]);
+        char *path = resolve_path(command->argv[0]);    // prepend "/usr/bin" to command
         if (!path) {
             write(2, "alloc failed\n", 13);
-            _exit(1);
+            _exit(1);                                   // path was NULL terminate child process 
         }
-        execve(path, command->argv, NULL);
+        execve(path, command->argv, NULL);              // Replace child process image with target program to execute
         write(2, "execve failed, please re-enter command\n", 40);
-        _exit(1);
+        _exit(1);                                       // execve failed, terminate process
     }
-    return pid; // parent
+    return pid;                                         // return child PID
 }
 
 

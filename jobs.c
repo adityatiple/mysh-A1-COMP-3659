@@ -65,25 +65,23 @@ static void remove_tokens(struct Command *command, int start, int count) {
     }
 
 int setup_redirection(struct Job *job, struct FD *fd_set) {
-    fd_set->in_fd = -1;
-    fd_set->out_fd = -1;
 
-    if (job->infile_path) {                         // Handle input redirection
-        fd_set->in_fd = open(job->infile_path, O_RDONLY);
+    if (job->infile_path) {                                 // Handle input redirection
+        fd_set->in_fd = open(job->infile_path, O_RDONLY);   // set in path and open for reading
         if (fd_set->in_fd < 0) {
             write(2, "open(<) failed\n", 15);
             return -1;
         }
     }    
-    if (job->outfile_path) {                        // Handle output redirection
+    if (job->outfile_path) {                                // Handle output redirection
         fd_set->out_fd = open(job->outfile_path, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
         if (fd_set->out_fd < 0) {
-            if (fd_set->in_fd >= 0) close(fd_set->in_fd);
+            if (fd_set->in_fd >= 0) close(fd_set->in_fd);   // close in_file path if it was opened
             write(2, "open(>) failed\n", 15);
             return -1;
         }
     }
-    return 0;                                       // success
+    return 0;                                               // success - both files opened and set
 }
 
 int parse_pipeline(struct Job *job) {
@@ -156,16 +154,14 @@ int parse_output_redirection(struct Job *job) {
 }
 
 pid_t launch_stage0(struct Job *job, struct FD *fd_set) {
-    fd_set->stage0_in  = -1;
-    fd_set->stage0_out = -1;
 
     if (fd_set->in_fd >= 0) {
         fd_set->stage0_in = fd_set->in_fd;
     }
     if (fd_set->pipe_exists) {
-        fd_set->stage0_out = fd_set->pipefd[1];        // write end to stage 1
+        fd_set->stage0_out = fd_set->pipefd[1];             // stage 0 output becomes input for stage 1
     } else if (job->outfile_path) {
-        fd_set->stage0_out = fd_set->out_fd;           // single stage with '>'
+        fd_set->stage0_out = fd_set->out_fd;                // single stage with '<', set ouput to the opened file
     }
 
     pid_t p0 = run_command(&job->pipeline[0], fd_set); 
@@ -177,38 +173,33 @@ pid_t launch_stage0(struct Job *job, struct FD *fd_set) {
         }
         return -1;
     }
-    if (fd_set->stage0_in >= 0) close(fd_set->stage0_in); // parent no longer needs it
-    if (fd_set->pipefd[1] >= 0) close(fd_set->pipefd[1]);
+    if (fd_set->stage0_in >= 0) close(fd_set->stage0_in);   // parent no longer needs it
+    if (fd_set->pipefd[1] >= 0) close(fd_set->pipefd[1]);   // close write end of parent 
 
-    return p0;                                          // return the pid
+    return p0;                                              // return the pid (stage 0)
 }
 
 pid_t launch_stage1(struct Job *job, struct FD *fd_set) {
-    fd_set->stage1_in  = -1;
-    fd_set->stage1_out = -1;
 
-    fd_set->stage1_in = fd_set->pipefd[0];              // read end of pipe feeds stage 1
+    fd_set->stage1_in = fd_set->pipefd[0];                  // input coming from stage 0 's output
     if (job->outfile_path) {
-        fd_set->stage1_out = fd_set->out_fd;            // '>' on stage 1 if present
+        fd_set->stage1_out = fd_set->out_fd;                // '>' on stage 1 if present
     }
 
     pid_t p1 = run_command(&job->pipeline[1], fd_set);  
 
-    if (fd_set->stage1_in >= 0) 
-        close(fd_set->stage1_in);
-    if (fd_set->out_fd >= 0) 
-        close(fd_set->out_fd);
+    if (fd_set->stage1_in >= 0) close(fd_set->stage1_in);   // Parent no longer needs to keep the pipe's read end open
+    if (fd_set->out_fd >= 0) close(fd_set->out_fd);         // close out_fd to avoid leaks 
 
-    return p1;                                          // return the pid
+    return p1;                                              // return the pid (stage 1)
 }
 
 void close_fd(struct FD *fd_set) {
-    if (fd_set->in_fd  >= 0) close(fd_set->in_fd);
-    if (fd_set->out_fd >= 0) close(fd_set->out_fd);
+    if (fd_set->in_fd  >= 0) close(fd_set->in_fd);          // close in_fd if open
+    if (fd_set->out_fd >= 0) close(fd_set->out_fd);         // close out_fd if open
 }
 
-/* modifies job->background and strips '&' */
-void handle_background(struct Job *job) {
+void handle_background(struct Job *job) {               // modifies job->background and strips '&'
     int last = 0;
     if (job->num_stages == 2) 
         last = 1;
@@ -224,17 +215,17 @@ void handle_background(struct Job *job) {
 
 int wait_for_foreground(pid_t p0, pid_t p1, int pipe_exists) {
     int status = 0;    
-    if (p0 > 0) {                                       /* Wait for stage 0 */
+    if (p0 > 0) {                                          // Wait for stage 0 
         if (waitpid(p0, &status, 0) < 0) {
             write(2, "waitpid stage0 failed\n", 22);
         }
     }    
-    if (pipe_exists && p1 > 0) {                           /* Wait for stage 1 (if a pipe is used) */
+    if (pipe_exists && p1 > 0) {                           // Wait for stage 1 (if a pipe is used)
         if (waitpid(p1, &status, 0) < 0) {
             write(2, "waitpid stage1 failed\n", 22);
         }
     }
-    return status;                                      /* Return last child’s exit status */ 
+    return status;                                         // Return last child’s exit status
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------
@@ -258,7 +249,7 @@ int get_job(struct Job *job) {
 int run_job(struct Job *job) {
     struct FD fd_set;
     initialize_fd(job, &fd_set);
-    if (setup_redirection(job, &fd_set) < 0) {
+    if (setup_redirection(job, &fd_set) < 0) {     // open infile/outfile if requested
         return -1;
     }     
     if (fd_set.pipe_exists) {                      // create pipe if we have two stages
@@ -267,13 +258,12 @@ int run_job(struct Job *job) {
             write(2, "pipe failed\n", 12);
             return -1;
         }
-    }
-    /* Stage 0 stdio */
-    pid_t p0 = launch_stage0(job, &fd_set);
+    }    
+    pid_t p0 = launch_stage0(job, &fd_set);         // Stage 0 stdio 
     if (p0 < 0)
         return -1;
 
-    pid_t p1;
+    pid_t p1;                                       // Stage 1 stdio
     if (fd_set.pipe_exists)
         p1 = launch_stage1(job, &fd_set);
 
