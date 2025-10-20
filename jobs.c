@@ -43,7 +43,7 @@ void initialize_fd(struct Job *job, struct FD *fd_set) {
     fd_set->stage1_out = -1;
 }
 
-static int find_token(struct Command *command, const char *token) { // use when token location is unknown in the pipeline
+static int find_token(struct Command *command, const char *token) { // used when token location is unknown in the command argv
     for (int i = 0; i < command->argc; i++) {
         if (mystrcmp(command->argv[i], token) == 0) 
             return i;
