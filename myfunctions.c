@@ -133,11 +133,7 @@ void redirect_output(int out_fd) {
 
 int get_command(struct Command *command) {    
     char buffer[MAX_CH + 1];                                                // input command-line  
-            if (mystrcmp(buffer, "test") == 0) {
-               run_myfunctions_tests();
-            //continue;
-        }  
-
+    
     write(1, "mysh $ ", 7);                                                 /* prompt */
     
     ssize_t bytes_read = read(0, buffer, MAX_CH + 1);                       /* bytes read from buffer */
