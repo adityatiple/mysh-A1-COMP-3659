@@ -36,6 +36,8 @@ void initialize_fd(struct Job *job, struct FD *fd_set) {
         
     if (job->num_stages == 2) 
         fd_set->pipe_exists = 1;
+    else 
+        fd_set->pipe_exists = 0;
     
     fd_set->stage0_in  = -1;
     fd_set->stage0_out = -1;
